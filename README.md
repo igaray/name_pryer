@@ -2,8 +2,8 @@
 
 ### Overview
 
-**name-pryer** is a simple script for manipulating file names, 
-a file name swiss army knife.
+**name-pryer** is a simple command-line script for manipulating 
+file names, a file name swiss army knife.
 It operates on single files or groups of files.
 It's name (and code) is an anagram of 
 [pyRenamer](https://github.com/SteveRyherd/pyRenamer)
@@ -51,7 +51,7 @@ applying transformations on the file names therein.
 ``-f FILE``
 
 Operate on a single file instead of all files in the current directory.
-Essentially drops all file names from the buffer that to not match its
+Essentially drops all file names from the buffer that do not match its
 value, so be sure to specify this at the beginning, or it will be 
 difficult to have it match something.
 
