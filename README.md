@@ -1,26 +1,38 @@
-
 ## Name Pryer 
 
 ### Overview
 
-**name-pryer** is a simple script for manipulating file names, a file 
-name swiss army knife.
+**name-pryer** is a simple script for manipulating file names, 
+a file name swiss army knife.
 It operates on single files or groups of files.
-It inherits much from [pyRenamer]().
+It's name (and code) is an anagram of 
+[pyRenamer](https://github.com/SteveRyherd/pyRenamer)
+by Adolfo González Blázquez, from which it inherits much.
 
 Other work similar to this: 
+* [kevbradwick/pyrenamer](https://github.com/kevbradwick/pyrenamer)
+* [italomaia/renamer](https://github.com/italomaia/renamer)
+* [Donearm/Renamer](https://github.com/Donearm/Renamer)
 
-**name-pryer** works by creating a listing of files in the current directory, 
-and successively applying filters and transformations on the names until the 
-final form is obtained. This final form for each file name is shown and 
-confirmation is requested before renaming the files.
+**name-pryer** operates by populating a buffer with a listing of 
+files in the current directory, and successively applying filters 
+and transformations on the names until the final form is obtained. 
+This final form for each file name is shown and confirmation is 
+requested before renaming the files.
 
 ### Flags
 
 ``-h``
 
-Help.
+Help. Print a message with a summary of the options.
 
+---
+``-y``
+
+Yes mode. Do not ask for confirmation.
+Useful for non-interactive batch scripts.
+
+---
 ``-v``
 
 Verbose mode. Will list the filters and its arguments in the order to be applied.
@@ -32,10 +44,18 @@ transformation is applied.
 
 ### Filters
 
+Filters will specify which files remain in the buffer in addition to 
+applying transformations on the file names therein. 
+
+---
 ``-f FILE``
 
 Operate on a single file instead of all files in the current directory.
+Essentially drops all file names from the buffer that to not match its
+value, so be sure to specify this at the beginning, or it will be 
+difficult to have it match something.
 
+---
 ``-p SOURCE_PATTERN DESTINATION_PATTERN``
 
 ### Transformations
@@ -69,10 +89,10 @@ Replace X with Y.
 Change case.
 
 * Options
-  * lc: lowercase
-  * uc: uppercase
-  * tc: title case
-  * sc: sentence case
+  * **lc**: lowercase
+  * **uc**: uppercase
+  * **tc**: title case
+  * **sc**: sentence case
 
 ---
 ``-i X [Y | end]``
