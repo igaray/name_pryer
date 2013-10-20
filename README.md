@@ -1,5 +1,15 @@
 ## Name Pryer
 
+**pry** *transitive verb*
+
+1. to raise, move, or pull apart with a lever :  prize
+2. to extract, detach, or open with difficulty <pried the secret out of my sister>
+
+**pry** *noun*
+
+1. a tool for prying
+2. leverage
+
 ### Overview
 
 **name-pryer** is a simple command-line script for manipulating
