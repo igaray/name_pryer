@@ -31,6 +31,21 @@ contents of the file name buffer until the final form is obtained.
 This final form for each file name is shown and confirmation is
 requested before renaming the files.
 
+### License
+
+The original **pyRenamer** has a GPL 2 license, so this is what **name-pryer**
+has.
+
+### Requirements
+
+**name-pryer** requires Python 3 and has no other dependencies.
+
+### Installation
+
+**name-pryer** is a stand-alone script.
+Just download the ``name-pryer.py`` file, set is axecutable, put it in your
+``$PATH`` and alias to your finger's content.
+
 ### Flags without effects on file names
 
 ``-h``
