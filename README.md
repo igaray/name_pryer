@@ -185,6 +185,38 @@ Convert one character to another.
 ### Examples
 
 ---
+```bash
+% pwd
+/Users/inaki/Music/Thriftworks - Deviation (2013)/Thriftworks - Deviation (2013)
+
+% ls
+01 - Untrue.mp3                      03 - Feeding Time.mp3                05 - The Touch.mp3                   07 - Terminally Chill.mp3            New Album Releases.url
+02 - Fits the Bill.mp3               04 - Someone (feat. Oriel Poole).mp3 06 - Metal Tho.mp3                   08 - Nanometer.mp3
+
+% python3 ~/Dropbox/code-projects/name-pryer/name-pryer.py -v3 -p "{#} - {X}" "{1} {2}"
+actions:
+verbosity 3
+pattern   {#} - {X} {1} {2}
+
+setting verbosity level to 3
+----------------------------------------------------------------------
+pattern {#} - {X} {1} {2}
+01 - Untrue.mp3                      => 01 Untrue.mp3
+02 - Fits the Bill.mp3               => 02 Fits the Bill.mp3
+03 - Feeding Time.mp3                => 03 Feeding Time.mp3
+04 - Someone (feat. Oriel Poole).mp3 => 04 Someone (feat. Oriel Poole).mp3
+05 - The Touch.mp3                   => 05 The Touch.mp3
+06 - Metal Tho.mp3                   => 06 Metal Tho.mp3
+07 - Terminally Chill.mp3            => 07 Terminally Chill.mp3
+08 - Nanometer.mp3                   => 08 Nanometer.mp3
+
+y/n?
+y
+
+% ls
+01 Untrue.mp3                      03 Feeding Time.mp3                05 The Touch.mp3                   07 Terminally Chill.mp3            New Album Releases.url
+02 Fits the Bill.mp3               04 Someone (feat. Oriel Poole).mp3 06 Metal Tho.mp3                   08 Nanometer.mp3
+```
 
 ### TODO
 
