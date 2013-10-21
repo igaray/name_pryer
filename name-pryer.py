@@ -1,4 +1,5 @@
 #!/bin/python
+# -*- coding: utf-8 -*-
 # File-Pryer: File Name Swiss Army Knife
 
 import os
