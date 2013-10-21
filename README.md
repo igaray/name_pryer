@@ -43,7 +43,7 @@ has.
 ### Installation
 
 **name-pryer** is a stand-alone script.
-Just download the ``name-pryer.py`` file, set is axecutable, put it in your
+Just download the ``name-pryer.py`` file, set it as executable, put it in your
 ``$PATH`` and alias to your finger's content.
 
 ### Flags without effects on file names
@@ -184,14 +184,28 @@ Convert one character to another.
 
 ### Examples
 
+<!-- ---
+python3 name-pryer.py
+-s us -s sp -s pd -s du -s ud -s ds -s su -s up -s ps -s sd -s dp -s pu -r e x -c lc -c uc -c tc -c sc
+-i _ins_ 0 -i _ins_ 3 -i _ins_ end
+-d X 0
+-d X end
+-d X Y -->
+
 ---
-```bash
+```
 % pwd
 /Users/inaki/Music/Thriftworks - Deviation (2013)/Thriftworks - Deviation (2013)
 
-% ls
-01 - Untrue.mp3                      03 - Feeding Time.mp3                05 - The Touch.mp3                   07 - Terminally Chill.mp3            New Album Releases.url
-02 - Fits the Bill.mp3               04 - Someone (feat. Oriel Poole).mp3 06 - Metal Tho.mp3                   08 - Nanometer.mp3
+% ls -1
+01 - Untrue.mp3
+02 - Fits the Bill.mp3
+03 - Feeding Time.mp3
+04 - Someone (feat. Oriel Poole).mp3
+05 - The Touch.mp3
+06 - Metal Tho.mp3
+07 - Terminally Chill.mp3
+08 - Nanometer.mp3
 
 % python3 ~/Dropbox/code-projects/name-pryer/name-pryer.py -v3 -p "{#} - {X}" "{1} {2}"
 actions:
@@ -213,9 +227,15 @@ pattern {#} - {X} {1} {2}
 y/n?
 y
 
-% ls
-01 Untrue.mp3                      03 Feeding Time.mp3                05 The Touch.mp3                   07 Terminally Chill.mp3            New Album Releases.url
-02 Fits the Bill.mp3               04 Someone (feat. Oriel Poole).mp3 06 Metal Tho.mp3                   08 Nanometer.mp3
+% ls -1
+01 Untrue.mp3
+02 Fits the Bill.mp3
+03 Feeding Time.mp3
+04 Someone (feat. Oriel Poole).mp3
+05 The Touch.mp3
+06 Metal Tho.mp3
+07 Terminally Chill.mp3
+08 Nanometer.mp3
 ```
 
 ### TODO
