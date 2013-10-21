@@ -16,6 +16,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+# TODO:
+
+# - write some examples
+# - change classes to namedtuple
+# - make sure argparse cannot be used
+# - make pip friendly
+# - pep3 conforming
+# - use os.path.sep instead of "/
+# - consider logger for output and verbosity level handling"
+# - doc: see sphinx
+
 import os
 import re
 import sys
@@ -91,7 +102,6 @@ def rename_file(old, new):
     try:
         if (old == new):
             return True
-        print("renaming {} to {}".format(old, new))
         os.renames(old, new)
         return True
     except Exception:
@@ -104,7 +114,7 @@ def rename_files(buffer):
             t = buffer[k].name + buffer[k].ext
             sys.exit("error while renaming {} to {}! -> {} already exists!".format(k, t, t))
     for k, v in sorted(buffer.items()):
-        rename_file(k, t)
+        rename_file(v.path + k, v.path + v.full)
 
 def verify_buffer(buffer):
     for k1, v1 in buffer.items():
@@ -492,7 +502,6 @@ def process_pattern_match(name, pattern_ini, pattern_end, count):
         search = repattern.search(name)
         if (search):
             groups = search.groups()
-            print("GROUPS:", groups)
             for i in range(len(groups)):
                 newname = newname.replace("{"+ str(i+1) +"}", groups[i])
         else:
@@ -640,8 +649,7 @@ def main():
         confirmed = obtain_confirmation(buffer)
 
         if confirmed:
-            # rename_files(buffer)
-            pass
+            rename_files(buffer)
 
 ################################################################################
 # GLOBALS
