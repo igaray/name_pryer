@@ -241,6 +241,9 @@ y
 ### TODO
 
 ---
+* Add a camelCaseString splitter
+
+---
 * Add a vim-like macro recording and playback system.
 
 ---
