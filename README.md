@@ -207,7 +207,7 @@ python3 name-pryer.py
 07 - Terminally Chill.mp3
 08 - Nanometer.mp3
 
-% python3 ~/Dropbox/code-projects/name-pryer/name-pryer.py -v3 -p "{#} - {X}" "{1} {2}"
+% name-pryer.py -v3 -p "{#} - {X}" "{1} {2}"
 actions:
 verbosity 3
 pattern   {#} - {X} {1} {2}
