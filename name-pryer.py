@@ -18,6 +18,7 @@
 
 # TODO:
 
+# - split should just match a regex (a-zA-Z)+
 # - write some examples
 # - change classes to namedtuple
 # - make sure argparse cannot be used
@@ -143,13 +144,21 @@ def split_list_on(l0, on):
     return l2
 
 def split(string):
-    l0 = [string]
-    l1 = split_list_on(l0, ".")
-    l2 = split_list_on(l1, ",")
-    l3 = split_list_on(l2, " ")
-    l4 = split_list_on(l3, "-")
-    l5 = split_list_on(l4, "_")
-    return l5
+    l00 = [string]
+    l01 = split_list_on(l00, ".")
+    l02 = split_list_on(l01, ",")
+    l03 = split_list_on(l02, " ")
+    l04 = split_list_on(l03, "-")
+    l05 = split_list_on(l04, "_")
+    l06 = split_list_on(l05, "(")
+    l07 = split_list_on(l06, ")")
+    l08 = split_list_on(l07, "{")
+    l09 = split_list_on(l08, "}")
+    l10 = split_list_on(l09, "[")
+    l11 = split_list_on(l10, "]")
+    l12 = split_list_on(l09, "<")
+    l13 = split_list_on(l10, ">")
+    return l13
 
 ################################################################################
 # PARSING
@@ -779,7 +788,7 @@ CASE_FUNS = {
     "uc" : lambda x: x.upper(),
     "lc" : lambda x: x.lower(),
     "sc" : lambda x: x.capitalize(),
-    "tc" : lambda x: " ".join([y.capitalize() for y in split(x)])
+    "tc" : lambda x: "".join([y.capitalize() for y in split(x)])
 }
 SUBSTITUTE_FUNS = {
     "sd" : lambda x: x.replace(" ", "-"),
