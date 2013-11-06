@@ -241,6 +241,9 @@ y
 ### TODO
 
 ---
+* Add a vim-like macro recording and playback system.
+
+---
 * Add flag to specify operation only on files (default), only on dirs, or both.
 
 ``-m [f | d | b]``
