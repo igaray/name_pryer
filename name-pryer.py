@@ -260,7 +260,7 @@ def rename_file(old, new):
 
 def rename_files(buffer):
     for k, v in buffer.items():
-        if os.path.exists(buffer[k].full):
+        if (k != buffer[k].full) and os.path.exists(buffer[k].full):
             t = buffer[k].name + buffer[k].ext
             sys.exit("error while renaming {} to {}! -> {} already exists!".format(k, t, t))
     for k, v in sorted(buffer.items()):
