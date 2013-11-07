@@ -46,16 +46,30 @@ import functools
 ################################################################################
 # GLOBALS
 
-USAGE = """
-Usage:
-    -l DIRECTORY
-
-    -f FILENAME
-        Run on file FILENAME
+"""
     -m [f | d | b]
         f: operate only on files (default)
         d: operate only on directories
         b: operate both on directories and files
+"""
+
+USAGE = """
+Usage:
+    -h
+        Help, print this message
+    -v X
+        Verbosity level. X may be one of 0, 1, 2 or 3
+        lvl 0: silent running, no output
+        lvl 1: default, show original filenames and after final transformation
+        lvl 2: show lvl 1 output and actions to be applied
+        lvl 3: show lvl 2 output and state of file name buffer after each step
+        Counts as an action, so several may be present between other actions
+        to raise or lower the verbosity during operation.
+    -y
+        Yes mode, do not prompt for confirmation.
+
+    -f FILENAME
+        Run on file FILENAME
     -p SOURCE_PATTERN DESTINATION_PATTERN
         Pattern match.
         {#}         Numbers
@@ -73,10 +87,27 @@ Usage:
         {day}
         {dayname}
         {daysimp}
-    -n
-       Sanitize the filename by removing anything that is not alfanumeric.
+
+    -c [lc | uc | tc | sc]
+        Change case:
+            lc: lowercase
+            uc: uppercase
+            tc: title case
+            sc: sentence case
     -C
        Split camelCase words.
+    -d X (Y | end)
+        Delete from position X to Y [or end]
+    [+|-]e [EXT]
+        Modify extension.
+    -i X (Y | end)
+        Insert X at position Y [or end]
+        X must be a string
+        Y must be either the string "end" or an integer
+    -n
+       Sanitize the filename by removing anything that is not alfanumeric.
+    -r X Y
+        Replace X with Y.
     -s [sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du ]
         Substitute characters:
             sd: spaces to dashes
@@ -91,30 +122,6 @@ Usage:
             dp: dashes to periods
             ds: dashes to spaces
             du: dashes to underscores
-    -r X Y
-        Replace X with Y.
-    -c [lc | uc | tc | sc]
-        Change case:
-            lc: lowercase
-            uc: uppercase
-            tc: title case
-            sc: sentence case
-    -i X [Y | end]
-        Insert X at position Y [or end]
-        X must be a string
-        Y must be either the string "end" or an integer
-    -d X [Y | end]
-        Delete from position X to Y [or end]
-    -v X
-        Verbosity level. X may be one of 0, 1, 2 or 3
-        lvl 0: silent running, no output
-        lvl 1: default, show original filenames and after final transformation
-        lvl 2: show lvl 1 output and actions to be applied
-        lvl 3: show lvl 2 output and state of file name buffer after each step
-        Counts as an action, so several may be present between other actions
-        to raise or lower the verbosity during operation.
-    -y   Yes mode, do not prompt for confirmation.
-    -h   Help, print this message
 """
 YES_MODE = False
 # lvl 0: silent running
@@ -597,12 +604,14 @@ def process_case(mode, name):
 def process_delete(ini, end, name):
     if (end == "end"):
         end = len(name)
+    elif (end > len(name)):
+        sys.exit(ERRMSGS["delete-index-2"])
+
     if (ini > len(name)):
         sys.exit(ERRMSGS["delete-index-1"])
-    if (end > len(name)):
-        sys.exit(ERRMSGS["delete-index-2"])
-    if (ini > end):
+    elif (ini > end):
         sys.exit(ERRMSGS["delete-index-3"])
+
     textini = name[0:ini]
     textend = name[end + 1 : len(name)]
     newname = textini + textend
@@ -635,10 +644,9 @@ def process_extension(mode, ext, name):
 def process_insert(name, text, pos):
     if (pos == "end"):
         pos = len(name)
-    if (pos > len(name)):
-        sys.exit(ERRMSGS["insert-index-1"])
-    if (pos == "end"):
         newname = name + text
+    elif (pos > len(name)):
+        sys.exit(ERRMSGS["insert-index-1"])
     else:
         newname = name[0 : pos] + text + name[pos : len(name)]
     return newname
