@@ -59,7 +59,7 @@ Yes mode. Do not ask for confirmation.
 Useful for non-interactive batch scripts.
 
 ---
-``-vX`` where ``X`` is ``0``, ``1``, ``2`` or ``3``.
+``-v [0 1 2 3]``
 
 Verbosity level.
 
@@ -118,12 +118,18 @@ This is the most useful operator and is taken directly from **pyRenamer**'s code
 ### Transformations
 
 Transformations visit every file name in the buffer and transform them in some way.
+None of the transformations will affect the extension or the period just before
+the extension. 
+
+---
+``-C``
+
+Split words in camelCase. 
 
 ---
 ``-c [lc | uc | tc | sc]``
 
 Change case.
-Will not affect the extension.
 If you wish to capitalize the extension, use the ``-e`` flag.
 
 * Options
@@ -136,7 +142,7 @@ If you wish to capitalize the extension, use the ``-e`` flag.
 ``-d X [Y | end]``
 
 Delete from position X to Y [or end].
-Does not take into account the extension, so end is just before the last period.
+The end is just before the last period.
 
 * X must be a non-negative integer.
 * Y must be a either the string 'end' or a non-negative integer.
@@ -153,10 +159,15 @@ Modifies the extension.
 ``-i X [Y | end]``
 
 Insert X at position Y [or end].
-Does not take into account the extension, so end is just before the last period.
+The end is just before the last period.
 
 * X must be a string
 * Y must be either the string 'end' or a non-negative integer
+
+---
+``-n``
+
+Sanitizes filenames by removing anything that is not an alphanumeric field.
 
 ---
 ``-r X Y``
@@ -207,7 +218,7 @@ python3 name-pryer.py
 07 - Terminally Chill.mp3
 08 - Nanometer.mp3
 
-% name-pryer.py -v3 -p "{#} - {X}" "{1} {2}"
+% name-pryer.py -v 3 -p "{#} - {X}" "{1} {2}"
 actions:
 verbosity 3
 pattern   {#} - {X} {1} {2}
@@ -241,10 +252,9 @@ y
 ### TODO
 
 ---
-* Add a camelCaseString splitter
+Add flag to specify creation of an undo script, which when run will undo changes.
 
----
-* Add a vim-like macro recording and playback system.
+``-u``
 
 ---
 * Add flag to specify operation only on files (default), only on dirs, or both.
@@ -266,11 +276,6 @@ Operation mode.
 Set working directory. Default is current directory.
 
 ---
-Add flag to specify creation of an undo script, which when run will undo changes.
-
-``-u``
-
----
 * Add flag to specify recursive operation.
 
 ``-R``
@@ -283,3 +288,7 @@ Recursive operation.
 ``-g GLOB``
 
 Operate only on files matching the glob pattern.
+
+---
+* Add a vim-like macro recording and playback system.
+

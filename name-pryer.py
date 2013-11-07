@@ -18,15 +18,21 @@
 
 # TODO:
 
-# - split should just match a regex (a-zA-Z)+
-# - write some examples
-# - change classes to namedtuple
-# - make sure argparse cannot be used
+# - pep8 conforming
+# - add some examples
 # - make pip friendly
-# - pep3 conforming
-# - use os.path.sep instead of "/
-# - consider logger for output and verbosity level handling"
-# - doc: see sphinx
+
+# IDEAS:
+# - add flag to specify creation of an undo script, which when run will undo changes.
+# - add flag to specify operation only on files (default), only on dirs, or both.  -m [f | d | b]
+# - add flag to specify working directory, default is current working directory.
+# - add flag to specify recursive operation.
+# - add flag to specify a filter by glob pattern , e.g. ``-g "*.mp3"``
+# - add a vim-like macro recording and playback system.
+# - find a way to express matches such as "two fields of alfanumeric characters"
+# - add name and word dictinaries to know what is a name, what is a preposition, 
+#   noun, etc
+# - add a small expert system which knows how I like my files named and does that automatically
 
 import os
 import re
@@ -38,13 +44,143 @@ import termios
 import functools
 
 ################################################################################
+# GLOBALS
+
+USAGE = """
+Usage:
+    -l DIRECTORY
+
+    -f FILENAME
+        Run on file FILENAME
+    -m [f | d | b]
+        f: operate only on files (default)
+        d: operate only on directories
+        b: operate both on directories and files
+    -p SOURCE_PATTERN DESTINATION_PATTERN
+        Pattern match.
+        {#}         Numbers
+        {L}         Letters
+        {C}         Characters (Numbers & letters, not spaces)
+        {X}         Numbers, letters, and spaces
+        {@}         Trash
+        {numX+Y}    Number, padded to X characters with leading 0s, step by Y
+        {randX-Y,Z} Random number between X and Y padded to Z characters
+        {date}
+        {year}
+        {month}
+        {monthname}
+        {monthsimp}
+        {day}
+        {dayname}
+        {daysimp}
+    -n
+       Sanitize the filename by removing anything that is not alfanumeric.
+    -C
+       Split camelCase words.
+    -s [sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du ]
+        Substitute characters:
+            sd: spaces to dashes
+            sp: spaces to periods
+            su: spaces to underscores
+            ud: underscores to dashes
+            up: underscores to periods
+            us: underscores to spaces
+            pd: periods to dashes
+            ps: periods to space
+            pu: periods to underscores
+            dp: dashes to periods
+            ds: dashes to spaces
+            du: dashes to underscores
+    -r X Y
+        Replace X with Y.
+    -c [lc | uc | tc | sc]
+        Change case:
+            lc: lowercase
+            uc: uppercase
+            tc: title case
+            sc: sentence case
+    -i X [Y | end]
+        Insert X at position Y [or end]
+        X must be a string
+        Y must be either the string "end" or an integer
+    -d X [Y | end]
+        Delete from position X to Y [or end]
+    -v X
+        Verbosity level. X may be one of 0, 1, 2 or 3
+        lvl 0: silent running, no output
+        lvl 1: default, show original filenames and after final transformation
+        lvl 2: show lvl 1 output and actions to be applied
+        lvl 3: show lvl 2 output and state of file name buffer after each step
+        Counts as an action, so several may be present between other actions
+        to raise or lower the verbosity during operation.
+    -y   Yes mode, do not prompt for confirmation.
+    -h   Help, print this message
+"""
+YES_MODE = False
+# lvl 0: silent running
+# lvl 1: default, show file name buffer before getting confirmation
+# lvl 2: verbose, show actions and file name buffer before getting confirmation
+# lvl 3: very verbose, show actions and file name buffer state after each action
+VERBOSITY_LEVEL = 1
+# mode 0: operate on files only
+# mode 1: operate on directories only
+# mode 2: operate on fiels and directories
+FILE_MODE = 0 # operate on files only by default
+VALID_FLAGS = frozenset(
+    [ "-c", "-C", "-d", "-e", "+e", "f", "-h", "-i", "-n", "-p", "-r", "-s", 
+      "-y", "-v0", "-v1", "-v2", "-v3"
+    ])
+VALID_SUBTITUTION_OPTIONS = frozenset(
+    ["sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"]
+    )
+VALID_CASE_OPTIONS = frozenset(
+    ["lc", "uc", "tc", "sc"]
+    )
+ERRMSGS = {
+    "file-arity"      : "-f flag requires a filename parameter",
+    "case-arity"      : "-c flag requires a parameter",
+    "case-type"       : "argument for -c may be one of: lc uc tc sc",
+    "extension-arity" : "+e flag requires a parameter",
+    "delete-arity"    : "-d flag requires two parameters",
+    "delete-type-1"   : "first argument to -d must be an integer",
+    "delete-type-2"   : "second argument to -d must be either 'end' or an integer",
+    "delete-type-3"   : "numerical arguments to -d must be non negative integers",
+    "delete-index-1"  : "first argument to -d is out of range",
+    "delete-index-2"  : "second argument to -d is out of range",
+    "delete-index-3"  : "first argument to -d is greater than second argument",
+    "insert-arity"    : "-i flag requires two parameters",
+    "insert-type-1"   : "second argument to -i must be either 'end' or an integer",
+    "insert-type-2"   : "numerical arguments to -i must be non-negative integers",
+    "indert-index"    : "second argument to -i is out of range",
+    "pattern-arity"   : "-p flag requires two parameters",
+    "replace-arity"   : "-r flag requires two parameters",
+    "subs-arity"      : "-s flag requires a parameter",
+    "subs-type"       : "argument for -s may be one of: sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du",
+    "verbosity-arity" : "-vX flag requires a parameter",
+    "verbosity-type"  : "argument to -vX flag requires an integer between 0 and 3",
+    "duplicate"       : "action will result in two or more identical file names!"
+}
+
+SPLIT_REGEX        = re.compile(r"[a-zA-Z0-9]+|[^a-zA-Z0-9]+")
+FIRST_CAP_REGEX    = re.compile(r"(.)([A-Z][a-z]+)")
+ALL_CAP_REGEX      = re.compile(r"([a-z0-9])([A-Z])")
+ALPHANUMERIC_REGEX = re.compile(r"[a-zA-Z0-9]+")
+
+ACTION_HANDLERS = {}
+CASE_FUNS = {}
+SUBSTITUTE_FUNS = {}
+
+
+################################################################################
 # CLASSES
 
+
 class Action:
-    def __init__(self, name, arg1, arg2=None):
+    def __init__(self, name, arg1=None, arg2=None):
         self.name = name
         self.arg1 = arg1
         self.arg2 = arg2
+
 
 class File:
     def __init__(self, path, name, ext=""):
@@ -61,12 +197,15 @@ class File:
         self.ext  = ext
         self.full = self.name + ext
 
+
 ################################################################################
 # FILE AND BUFFER HANDLING
+
 
 def escape_pattern(pattern):
     """ Escape special chars on patterns, so glob doesn"t get confused """
     return pattern.replace("[", "[[]")
+
 
 def get_file_listing(dir=os.getcwd(), mode=0, pattern=None, recursive=False):
     filelist = []
@@ -87,10 +226,11 @@ def get_file_listing(dir=os.getcwd(), mode=0, pattern=None, recursive=False):
                 abspath = os.path.abspath(elem)
                 if not os.path.isdir(abspath):
                     path, name = os.path.split(abspath)
-                    path += "/"
+                    path += os.sep
                     name, ext = os.path.splitext(name)
                     filelist.append(File(path, name, ext))
     return filelist
+
 
 def init_buffer():
     buffer = {}
@@ -98,6 +238,7 @@ def init_buffer():
     for f in files:
         buffer[f.full] = f
     return buffer
+
 
 def rename_file(old, new):
     try:
@@ -109,6 +250,7 @@ def rename_file(old, new):
         print("error while renaming {} to {}".format(old, new))
         return False
 
+
 def rename_files(buffer):
     for k, v in buffer.items():
         if os.path.exists(buffer[k].full):
@@ -117,48 +259,32 @@ def rename_files(buffer):
     for k, v in sorted(buffer.items()):
         rename_file(v.path + k, v.path + v.full)
 
+
 def verify_buffer(buffer):
     for k1, v1 in buffer.items():
         for k2, v2 in buffer.items():
             if (k1 != k2) and (v1.full == v2.full):
                 sys.exit(ERRMSGS["duplicate"])
 
+
 ################################################################################
 # LIST AND STRING MANGLING
 
-def flatten(l):
-    return [item for sublist in l for item in sublist]
-
-def split_string_on(s, on):
-    l1 = s.split(on)
-    l2 = []
-    for i in l1[:-1]:
-        l2.append(i)
-        l2.append(on)
-    l2.append(l1[-1])
-    return l2
-
-def split_list_on(l0, on):
-    l1 = [split_string_on(s, on) for s in l0]
-    l2 = flatten(l1)
-    return l2
 
 def split(string):
-    l00 = [string]
-    l01 = split_list_on(l00, ".")
-    l02 = split_list_on(l01, ",")
-    l03 = split_list_on(l02, " ")
-    l04 = split_list_on(l03, "-")
-    l05 = split_list_on(l04, "_")
-    l06 = split_list_on(l05, "(")
-    l07 = split_list_on(l06, ")")
-    l08 = split_list_on(l07, "{")
-    l09 = split_list_on(l08, "}")
-    l10 = split_list_on(l09, "[")
-    l11 = split_list_on(l10, "]")
-    l12 = split_list_on(l09, "<")
-    l13 = split_list_on(l10, ">")
-    return l13
+    l = SPLIT_REGEX.findall(string)
+    return l
+
+
+def split_camel_case(string):
+    s = FIRST_CAP_REGEX.sub(r"\1 \2", string)
+    return ALL_CAP_REGEX.sub(r"\1 \2", s)
+
+
+def split_alphanumeric(string):
+    s = ALPHANUMERIC_REGEX.findall(string)
+    return s
+
 
 ################################################################################
 # PARSING
@@ -181,26 +307,28 @@ def parse_args(argv):
                 msg = ERRMSGS["case-type"]
                 sys.exit(msg)
 
+        elif (argv[i] == "-C"):
+            actions.append(Action("camelcase"))
+            i += 1
+
         elif (argv[i] == "-d"):
             msg = ERRMSGS["delete-arity"]
             i, actions = parse_two(argv, i, actions, "delete", msg)
+            s1 = actions[-1].arg1
             try:
-                s1 = actions[-1].arg1
                 actions[-1].arg1 = int(s1)
-                if (actions[-1].arg1 < 0):
-                    sys.exit(ERRMSGS["delete-type-3"])
             except ValueError:
-                msg = ERRMSGS["delete-type-1"]
-                sys.exit(msg)
-            try:
-                s2 = actions[-1].arg2
-                if (s2 != "end"):
+                sys.exit(ERRMSGS["delete-type-1"])
+            if (actions[-1].arg1 < 0):
+                sys.exit(ERRMSGS["delete-type-3"])
+            s2 = actions[-1].arg2
+            if (s2 != "end"):
+                try:
                     actions[-1].arg2 = int(s2)
-                    if (actions[-1].arg2 < 0):
-                        sys.exit(ERRMSGS["delete-type-3"])
-            except ValueError:
-                msg = ERRMSGS["delete-type-2"]
-                sys.exit(msg)
+                except ValueError:
+                    sys.exit(ERRMSGS["delete-type-2"])
+                if (actions[-1].arg2 < 0):
+                    sys.exit(ERRMSGS["delete-type-3"])
 
         elif (argv[i] in ["-e", "+e"]):
             i, actions = parse_extension(argv, i, actions)
@@ -212,14 +340,14 @@ def parse_args(argv):
         elif (argv[i] == "-i"):
             msg = ERRMSGS["insert-arity"]
             i, actions = parse_two(argv, i, actions, "insert", msg)
-            try:
-                s = actions[-1].arg2
-                if (s != "end"):
+            s = actions[-1].arg2
+            if (s != "end"):
+                try:
                     actions[-1].arg2 = int(s)
-                    if (actions[-1].arg2 < 0):
-                        sys.exit(ERRMSGS["insert-type-2"])
-            except ValueError:
-                sys.exit(ERRMSGS["insert-type-1"])
+                except ValueError:
+                    sys.exit(ERRMSGS["insert-type-1"])
+                if (actions[-1].arg2 < 0):
+                    sys.exit(ERRMSGS["insert-type-2"])
 
         elif (argv[i] == "-p"):
             msg = ERRMSGS["pattern-arity"]
@@ -236,8 +364,19 @@ def parse_args(argv):
                 msg = ERRMSGS["subs-type"]
                 sys.exit(msg)
 
-        elif (argv[i][:2] == "-v"):
-            i, actions = parse_verbosity(argv, i, actions)
+        elif (argv[i]) == "-n":
+            actions.append(Action("sanitize"))
+            i += 1
+
+        elif (argv[i] == "-v"):
+            msg = ERRMSGS["verbosity-arity"]
+            i, actions = parse_one(argv, i, actions, "verbosity", msg)
+            try:
+                actions[-1].arg1 = int(actions[-1].arg1)
+            except ValueError:
+                sys.exit(ERRMSGS["verbosity-type"])
+            if not (actions[-1].arg1 in [0, 1, 2, 3]):
+                sys.exit(ERRMSGS["verbosity-type"])
 
         elif (argv[i] == "-h"):
             usage()
@@ -253,21 +392,24 @@ def parse_args(argv):
             sys.exit(msg)
     return actions
 
+
 def parse_one(argv, i, actions, action_name, errmsg):
     if (i+1 < len(argv)):
-        actions.append( Action(action_name, argv[i+1]) )
+        actions.append(Action(action_name, argv[i+1]))
         i += 2
     else:
         sys.exit(errmsg)
     return i, actions
 
+
 def parse_two(argv, i, actions, action_name, errmsg):
     if (i+2 < len(argv)):
-        actions.append( Action(action_name, argv[i+1], argv[i+2]) )
+        actions.append(Action(action_name, argv[i+1], argv[i+2]))
         i += 3
     else:
         sys.exit(errmsg)
     return i, actions
+
 
 def parse_extension(argv, i, actions):
     l    = len(argv)
@@ -291,27 +433,14 @@ def parse_extension(argv, i, actions):
     actions.append( action )
     return i, actions
 
-def parse_verbosity(argv, i, actions):
-    try:
-        if (len(argv[i]) > 2):
-            lvl    = argv[i][2]
-            arg1   = int(lvl)
-            action = Action("verbosity", arg1)
-            if not (action.arg1 in [0, 1, 2, 3]):
-                sys.exit(ERRMSGS["verbosity-type"])
-            actions.append(action)
-            i += 1
-        else:
-            sys.exit(ERRMSGS["verbosity-arity"])
-    except ValueError:
-        sys.exit(ERRMSGS["verbosity-type"])
-    return i, actions
 
 ################################################################################
 # OUTPUT
 
+
 def print_sep():
     print("-" * 70)
+
 
 def print_action(action, maxlen_name=None, maxlen_arg1=None):
     arg1_str = str(action.arg1)
@@ -331,6 +460,7 @@ def print_action(action, maxlen_name=None, maxlen_arg1=None):
         arg2_str
     ))
 
+
 def print_actions(actions):
     maxlen_name = maxlen_arg1 = 0
     for a in actions:
@@ -342,6 +472,7 @@ def print_actions(actions):
     for a in actions:
         print_action(a, maxlen_name, maxlen_arg1)
     print()
+
 
 def print_buffer(buffer):
     maxlen = 0
@@ -356,8 +487,10 @@ def print_buffer(buffer):
         ))
     print()
 
+
 ################################################################################
 # ACTION HANDLERS
+
 
 def handle_actions(actions):
     buffer = init_buffer()
@@ -370,10 +503,18 @@ def handle_actions(actions):
         verify_buffer(buffer)
     return buffer
 
+
+def handle_camel_case(action, buffer):
+    for k, v, in buffer.items():
+        buffer[k].set_name(process_camel_case(v.name))
+    return buffer
+
+
 def handle_case(action, buffer):
     for k, v in buffer.items():
         buffer[k].set_name(process_case(action.arg1, v.name))
     return buffer
+
 
 def handle_file(action, buffer):
     newbuffer = buffer.copy()
@@ -382,10 +523,12 @@ def handle_file(action, buffer):
             del newbuffer[k]
     return newbuffer
 
+
 def handle_delete(action, buffer):
     for k, v in buffer.items():
         buffer[k].set_name(process_delete(action.arg1, action.arg2, v.name))
     return buffer
+
 
 def handle_extension(action, buffer):
     for k, v in buffer.items():
@@ -393,11 +536,13 @@ def handle_extension(action, buffer):
         buffer[k].set_ext(e)
     return buffer
 
+
 def handle_insert(action, buffer):
     for k, v in buffer.items():
         n = process_insert(buffer[k].name, action.arg1, action.arg2)
         buffer[k].set_name(n)
     return buffer
+
 
 def handle_pattern_match(action, buffer):
     count = 0
@@ -411,11 +556,19 @@ def handle_pattern_match(action, buffer):
         count += 1
     return newbuffer
 
+
 def handle_replace(action, buffer):
     for k, v in buffer.items():
         n = process_replace(v.name, action.arg1, action.arg2)
         buffer[k].set_name(n)
     return buffer
+
+
+def handle_sanitize(action, buffer):
+    for k, v in buffer.items():
+        buffer[k].set_name(process_sanitize(v.name))
+    return buffer
+
 
 def handle_substitute(action, buffer):
     for k, v in buffer.items():
@@ -423,15 +576,23 @@ def handle_substitute(action, buffer):
         buffer[k].set_name(n)
     return buffer
 
+
 def handle_verbosity(action, buffer):
     process_verbosity(action.arg1)
     return buffer
 
+
 ################################################################################
 # ACTION PROCESSORS
 
+
+def process_camel_case(name):
+    return split_camel_case(name)
+
+
 def process_case(mode, name):
     return CASE_FUNS[mode](name)
+
 
 def process_delete(ini, end, name):
     if (end == "end"):
@@ -446,6 +607,7 @@ def process_delete(ini, end, name):
     textend = name[end + 1 : len(name)]
     newname = textini + textend
     return newname
+
 
 def process_extension(mode, ext, name):
     if (mode == "+"):
@@ -469,6 +631,7 @@ def process_extension(mode, ext, name):
             else:
                 return name, ""
 
+
 def process_insert(name, text, pos):
     if (pos == "end"):
         pos = len(name)
@@ -479,6 +642,7 @@ def process_insert(name, text, pos):
     else:
         newname = name[0 : pos] + text + name[pos : len(name)]
     return newname
+
 
 def process_pattern_match(name, pattern_ini, pattern_end, count):
     """
@@ -601,179 +765,31 @@ def process_pattern_match(name, pattern_ini, pattern_end, count):
 
     return newname
 
+
 def process_replace(name, old, new):
     return name.replace(old, new)
 
+
+def process_sanitize(name):
+    return " ".join(split_alphanumeric(name))
+
+
 def process_substitute(mode, name):
     return SUBSTITUTE_FUNS[mode](name)
+
 
 def process_verbosity(lvl):
     global VERBOSITY_LEVEL
     print("setting verbosity level to {}".format(lvl))
     VERBOSITY_LEVEL = lvl
 
-################################################################################
-# MAIN
-
-def getch():
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    try:
-        tty.setraw(sys.stdin.fileno())
-        ch = sys.stdin.read(1)
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    return ch
-
-def obtain_confirmation(filename_buffer):
-    if YES_MODE:
-        return True
-    else:
-        print("y/n?")
-        ch = getch()
-        if (ch == "y"):
-            return True
-        elif (ch == "n"):
-            return False
-        else:
-            sys.exit("unrecognized input")
-
-def usage():
-    print(USAGE)
-
-def main():
-    actions = parse_args(sys.argv)
-
-    if (len(actions) > 0):
-        f = lambda x, y: x or y
-        l = [(a.name == "verbosity") and (a.arg1 > 1) for a in actions]
-        r = functools.reduce(f, l, False)
-        if r:
-            print_actions(actions)
-
-        buffer = handle_actions(actions)
-
-        if (VERBOSITY_LEVEL in [1, 2]):
-            print_buffer(buffer)
-        confirmed = obtain_confirmation(buffer)
-
-        if confirmed:
-            rename_files(buffer)
 
 ################################################################################
 # GLOBALS
 
-USAGE = """
-Usage:
-    -l DIRECTORY
 
-    -f FILENAME
-        Run on file FILENAME
-    -m [f | d | b]
-        f: operate only on files (default)
-        d: operate only on directories
-        b: operate both on directories and files
-    -p SOURCE_PATTERN DESTINATION_PATTERN
-        Pattern match.
-        {#}         Numbers
-        {L}         Letters
-        {C}         Characters (Numbers & letters, not spaces)
-        {X}         Numbers, letters, and spaces
-        {@}         Trash
-        {numX+Y}    Number, padded to X characters with leading 0s, step by Y
-        {randX-Y,Z} Random number between X and Y padded to Z characters
-        {date}
-        {year}
-        {month}
-        {monthname}
-        {monthsimp}
-        {day}
-        {dayname}
-        {daysimp}
-    -s [sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du ]
-        Substitute characters:
-            sd: spaces to dashes
-            sp: spaces to periods
-            su: spaces to underscores
-            ud: underscores to dashes
-            up: underscores to periods
-            us: underscores to spaces
-            pd: periods to dashes
-            ps: periods to space
-            pu: periods to underscores
-            dp: dashes to periods
-            ds: dashes to spaces
-            du: dashes to underscores
-    -r X Y
-        Replace X with Y.
-    -c [lc | uc | tc | sc]
-        Change case:
-            lc: lowercase
-            uc: uppercase
-            tc: title case
-            sc: sentence case
-    -i X [Y | end]
-        Insert X at position Y [or end]
-        X must be a string
-        Y must be either the string "end" or an integer
-    -d X [Y | end]
-        Delete from position X to Y [or end]
-    -vX
-        Verbosity level. X may be one of 0, 1, 2 or 3
-        lvl 0: silent running, no output
-        lvl 1: default, show original filenames and after final transformation
-        lvl 2: show lvl 1 output and actions to be applied
-        lvl 3: show lvl 2 output and state of file name buffer after each step
-        Counts as an action, so several may be present between other actions
-        to raise or lower the verbosity during operation.
-    -y   Yes mode, do not prompt for confirmation.
-    -h   Help, print this message
-"""
-YES_MODE = False
-# lvl 0: silent running
-# lvl 1: default, show file name buffer before getting confirmation
-# lvl 2: verbose, show actions and file name buffer before getting confirmation
-# lvl 3: very verbose, show actions and file name buffer state after each action
-VERBOSITY_LEVEL = 1
-# mode 0: operate on files only
-# mode 1: operate on directories only
-# mode 2: operate on fiels and directories
-FILE_MODE = 0 # operate on files only by default
-VALID_FLAGS = frozenset(
-    [ "-c", "-d", "-e", "+e", "f", "-h", "-i", "-p", "-r", "-s", "-y",
-      "-v0", "-v1", "-v2", "-v3"
-    ])
-VALID_SUBTITUTION_OPTIONS = frozenset(
-    ["sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"]
-    )
-VALID_CASE_OPTIONS = frozenset(
-    ["lc", "uc", "tc", "sc"]
-    )
-ERRMSGS = {
-    "file-arity"      : "-f flag requires a filename parameter",
-    "case-arity"      : "-c flag requires a parameter",
-    "case-type"       : "argument for -c may be one of: lc uc tc sc",
-    "extension-arity" : "+e flag requires a parameter",
-    "delete-arity"    : "-d flag requires two parameters",
-    "delete-type-1"   : "first argument to -d must be an integer",
-    "delete-type-2"   : "second argument to -d must be either 'end' or an integer",
-    "delete-type-3"   : "numerical arguments to -d must be non negative integers",
-    "delete-index-1"  : "first argument to -d is out of range",
-    "delete-index-2"  : "second argument to -d is out of range",
-    "delete-index-3"  : "first argument to -d is greater than second argument",
-    "insert-arity"    : "-i flag requires two parameters",
-    "insert-type-1"   : "second argument to -i must be either 'end' or an integer",
-    "insert-type-2"   : "numerical arguments to -i must be non-negative integers",
-    "indert-index"    : "second argument to -i is out of range",
-    "pattern-arity"   : "-p flag requires two parameters",
-    "replace-arity"   : "-r flag requires two parameters",
-    "subs-arity"      : "-s flag requires a parameter",
-    "subs-type"       : "argument for -s may be one of: sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du",
-    "verbosity-arity" : "-vX flag requires a parameter",
-    "verbosity-type"  : "argument to -vX flag requires an integer between 0 and 3",
-    "duplicate"       : "action will result in two or more identical file names!"
-}
 ACTION_HANDLERS = {
+    "camelcase"  : handle_camel_case,
     "case"       : handle_case,
     "delete"     : handle_delete,
     "extension"  : handle_extension,
@@ -781,6 +797,7 @@ ACTION_HANDLERS = {
     "insert"     : handle_insert,
     "pattern"    : handle_pattern_match,
     "replace"    : handle_replace,
+    "sanitize"   : handle_sanitize,
     "substitute" : handle_substitute,
     "verbosity"  : handle_verbosity
 }
@@ -804,6 +821,57 @@ SUBSTITUTE_FUNS = {
     "ds" : lambda x: x.replace("-", " "),
     "du" : lambda x: x.replace("-", "_")
 }
+################################################################################
+# MAIN
+
+
+def getch():
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
+
+
+def obtain_confirmation(filename_buffer):
+    if YES_MODE:
+        return True
+    else:
+        print("y/n?")
+        ch = getch()
+        if (ch == "y"):
+            return True
+        elif (ch == "n"):
+            return False
+        else:
+            sys.exit("unrecognized input")
+
+
+def usage():
+    print(USAGE)
+
+
+def main():
+    actions = parse_args(sys.argv)
+
+    if (len(actions) > 0):
+        f = lambda x, y: x or y
+        l = [(a.name == "verbosity") and (a.arg1 > 1) for a in actions]
+        r = functools.reduce(f, l, False)
+        if r:
+            print_actions(actions)
+
+        buffer = handle_actions(actions)
+
+        if (VERBOSITY_LEVEL in [1, 2]):
+            print_buffer(buffer)
+        confirmed = obtain_confirmation(buffer)
+
+        if confirmed:
+            rename_files(buffer)
 
 ################################################################################
 if (__name__ == "__main__"):
