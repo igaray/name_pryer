@@ -239,12 +239,12 @@ def get_file_listing(dir=os.getcwd(), mode=0, pattern=None, recursive=False):
     return filelist
 
 
-def init_buffer():
-    buffer = {}
+def init_fn_buffer():
+    fn_buffer = {}
     files = get_file_listing()
     for f in files:
-        buffer[f.full] = f
-    return buffer
+        fn_buffer[f.full] = f
+    return fn_buffer
 
 
 def rename_file(old, new):
@@ -258,18 +258,18 @@ def rename_file(old, new):
         return False
 
 
-def rename_files(buffer):
-    for k, v in buffer.items():
-        if (k != buffer[k].full) and os.path.exists(buffer[k].full):
-            t = buffer[k].name + buffer[k].ext
+def rename_files(fn_buffer):
+    for k, v in fn_buffer.items():
+        if (k != fn_fn_buffer[k].full) and os.path.exists(fn_buffer[k].full):
+            t = fn_buffer[k].name + fn_buffer[k].ext
             sys.exit("error while renaming {} to {}! -> {} already exists!".format(k, t, t))
-    for k, v in sorted(buffer.items()):
+    for k, v in sorted(fn_buffer.items()):
         rename_file(v.path + k, v.path + v.full)
 
 
-def verify_buffer(buffer):
-    for k1, v1 in buffer.items():
-        for k2, v2 in buffer.items():
+def verify_fn_buffer(fn_buffer):
+    for k1, v1 in fn_buffer.items():
+        for k2, v2 in fn_buffer.items():
             if (k1 != k2) and (v1.full == v2.full):
                 sys.exit(ERRMSGS["duplicate"])
 
@@ -481,12 +481,12 @@ def print_actions(actions):
     print()
 
 
-def print_buffer(buffer):
+def print_fn_buffer(fn_buffer):
     maxlen = 0
-    for k in buffer.keys():
+    for k in fn_buffer.keys():
         maxlen = max(maxlen, len(k))
 
-    for k, v in sorted(buffer.items()):
+    for k, v in sorted(fn_buffer.items()):
         print("{}{}=> {}".format(
             k,
             (" " * (maxlen - len(k) + 1)),
@@ -500,93 +500,93 @@ def print_buffer(buffer):
 
 
 def handle_actions(actions):
-    buffer = init_buffer()
+    fn_buffer = init_fn_buffer()
     for action in actions:
-        buffer = ACTION_HANDLERS[action.name](action, buffer)
+        fn_buffer = ACTION_HANDLERS[action.name](action, fn_buffer)
         if (VERBOSITY_LEVEL > 2) and (action.name != "verbosity"):
             print_sep()
             print_action(action)
-            print_buffer(buffer)
-        verify_buffer(buffer)
-    return buffer
+            print_fn_buffer(fn_buffer)
+        verify_fn_buffer(fn_buffer)
+    return fn_buffer
 
 
-def handle_camel_case(action, buffer):
-    for k, v, in buffer.items():
-        buffer[k].set_name(process_camel_case(v.name))
-    return buffer
+def handle_camel_case(action, fn_buffer):
+    for k, v, in fn_buffer.items():
+        fn_buffer[k].set_name(process_camel_case(v.name))
+    return fn_buffer
 
 
-def handle_case(action, buffer):
-    for k, v in buffer.items():
-        buffer[k].set_name(process_case(action.arg1, v.name))
-    return buffer
+def handle_case(action, fn_buffer):
+    for k, v in fn_buffer.items():
+        fn_buffer[k].set_name(process_case(action.arg1, v.name))
+    return fn_buffer
 
 
-def handle_file(action, buffer):
-    newbuffer = buffer.copy()
-    for k in buffer.keys():
+def handle_file(action, fn_buffer):
+    new_fn_buffer = fn_buffer.copy()
+    for k in fn_buffer.keys():
         if (k != action.arg1):
-            del newbuffer[k]
-    return newbuffer
+            del new_fn_buffer[k]
+    return new_fn_buffer
 
 
-def handle_delete(action, buffer):
-    for k, v in buffer.items():
-        buffer[k].set_name(process_delete(action.arg1, action.arg2, v.name))
-    return buffer
+def handle_delete(action, fn_buffer):
+    for k, v in fn_buffer.items():
+        fn_buffer[k].set_name(process_delete(action.arg1, action.arg2, v.name))
+    return fn_buffer
 
 
-def handle_extension(action, buffer):
-    for k, v in buffer.items():
-        e = process_extension(action.arg1, action.arg2, buffer[k].name)
-        buffer[k].set_ext(e)
-    return buffer
+def handle_extension(action, fn_buffer):
+    for k, v in fn_buffer.items():
+        e = process_extension(action.arg1, action.arg2, fn_buffer[k].name)
+        fn_buffer[k].set_ext(e)
+    return fn_buffer
 
 
-def handle_insert(action, buffer):
-    for k, v in buffer.items():
-        n = process_insert(buffer[k].name, action.arg1, action.arg2)
-        buffer[k].set_name(n)
-    return buffer
+def handle_insert(action, fn_buffer):
+    for k, v in fn_buffer.items():
+        n = process_insert(fn_buffer[k].name, action.arg1, action.arg2)
+        fn_buffer[k].set_name(n)
+    return fn_buffer
 
 
-def handle_pattern_match(action, buffer):
+def handle_pattern_match(action, fn_buffer):
     count = 0
-    newbuffer = buffer.copy()
-    for k, v in buffer.items():
+    new_fn_buffer = fn_buffer.copy()
+    for k, v in fn_buffer.items():
         n = process_pattern_match(v.name, action.arg1, action.arg2, count)
         if (n):
-            newbuffer[k].set_name(n)
+            new_fn_buffer[k].set_name(n)
         else:
-            del newbuffer[k]
+            del new_fn_buffer[k]
         count += 1
-    return newbuffer
+    return new_fn_buffer
 
 
-def handle_replace(action, buffer):
-    for k, v in buffer.items():
+def handle_replace(action, fn_buffer):
+    for k, v in fn_buffer.items():
         n = process_replace(v.name, action.arg1, action.arg2)
-        buffer[k].set_name(n)
-    return buffer
+        fn_buffer[k].set_name(n)
+    return fn_buffer
 
 
-def handle_sanitize(action, buffer):
-    for k, v in buffer.items():
-        buffer[k].set_name(process_sanitize(v.name))
-    return buffer
+def handle_sanitize(action, fn_buffer):
+    for k, v in fn_buffer.items():
+        fn_buffer[k].set_name(process_sanitize(v.name))
+    return fn_buffer
 
 
-def handle_substitute(action, buffer):
-    for k, v in buffer.items():
+def handle_substitute(action, fn_buffer):
+    for k, v in fn_buffer.items():
         n = process_substitute(action.arg1, v.name)
-        buffer[k].set_name(n)
-    return buffer
+        fn_buffer[k].set_name(n)
+    return fn_buffer
 
 
-def handle_verbosity(action, buffer):
+def handle_verbosity(action, fn_buffer):
     process_verbosity(action.arg1)
-    return buffer
+    return fn_buffer
 
 
 ################################################################################
@@ -844,7 +844,7 @@ def getch():
     return ch
 
 
-def obtain_confirmation(filename_buffer):
+def obtain_confirmation(filename_fn_buffer):
     if YES_MODE:
         return True
     else:
@@ -872,14 +872,14 @@ def main():
         if r:
             print_actions(actions)
 
-        buffer = handle_actions(actions)
+        fn_buffer = handle_actions(actions)
 
         if (VERBOSITY_LEVEL in [1, 2]):
-            print_buffer(buffer)
-        confirmed = obtain_confirmation(buffer)
+            print_fn_buffer(fn_buffer)
+        confirmed = obtain_confirmation(fn_buffer)
 
         if confirmed:
-            rename_files(buffer)
+            rename_files(fn_buffer)
 
 ################################################################################
 if (__name__ == "__main__"):
