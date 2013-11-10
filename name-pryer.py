@@ -23,6 +23,8 @@
 # - make pip friendly
 
 # IDEAS:
+# - add flag to remove one or all matches of a string
+# - add flag to cleanup whitespace (remove duplicates and trim)
 # - add flag to specify creation of an undo script, which when run will undo changes.
 # - add flag to specify operation only on files (default), only on dirs, or both.  -m [f | d | b]
 # - add flag to specify working directory, default is current working directory.
@@ -123,26 +125,6 @@ Usage:
             ds: dashes to spaces
             du: dashes to underscores
 """
-YES_MODE = False
-# lvl 0: silent running
-# lvl 1: default, show file name buffer before getting confirmation
-# lvl 2: verbose, show actions and file name buffer before getting confirmation
-# lvl 3: very verbose, show actions and file name buffer state after each action
-VERBOSITY_LEVEL = 1
-# mode 0: operate on files only
-# mode 1: operate on directories only
-# mode 2: operate on fiels and directories
-FILE_MODE = 0 # operate on files only by default
-VALID_FLAGS = frozenset(
-    [ "-c", "-C", "-d", "-e", "+e", "f", "-h", "-i", "-n", "-p", "-r", "-s", 
-      "-y", "-v0", "-v1", "-v2", "-v3"
-    ])
-VALID_SUBTITUTION_OPTIONS = frozenset(
-    ["sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"]
-    )
-VALID_CASE_OPTIONS = frozenset(
-    ["lc", "uc", "tc", "sc"]
-    )
 ERRMSGS = {
     "file-arity"      : "-f flag requires a filename parameter",
     "case-arity"      : "-c flag requires a parameter",
@@ -167,6 +149,25 @@ ERRMSGS = {
     "verbosity-type"  : "argument to -vX flag requires an integer between 0 and 3",
     "duplicate"       : "action will result in two or more identical file names!"
 }
+# mode 0: operate on files only
+# mode 1: operate on directories only
+# mode 2: operate on fiels and directories
+FILE_MODE = 0 # operate on files only by default
+UNDO = False
+# lvl 0: silent running
+# lvl 1: default, show file name buffer before getting confirmation
+# lvl 2: verbose, show actions and file name buffer before getting confirmation
+# lvl 3: very verbose, show actions and file name buffer state after each action
+VALID_FLAGS = frozenset(
+    [ "-c", "-C", "-d", "-e", "+e", "-f", "-h", "-i", "-n", "-p", "-r", "-s", 
+      "-u", "-v", "-y"
+    ])
+VALID_SUBTITUTION_OPTIONS = frozenset(
+    ["sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"]
+    )
+VALID_CASE_OPTIONS = frozenset(["lc", "uc", "tc", "sc"])
+VERBOSITY_LEVEL = 1
+YES_MODE = False
 
 SPLIT_REGEX        = re.compile(r"[a-zA-Z0-9]+|[^a-zA-Z0-9]+")
 FIRST_CAP_REGEX    = re.compile(r"(.)([A-Z][a-z]+)")
@@ -198,11 +199,11 @@ class File:
 
     def set_name(self, name):
         self.name = name
-        self.full = name + self.ext
+        self.full = name + "." + self.ext
 
     def set_ext(self, ext):
         self.ext  = ext
-        self.full = self.name + ext
+        self.full = self.name + "." + ext
 
 
 ################################################################################
@@ -235,7 +236,7 @@ def get_file_listing(dir=os.getcwd(), mode=0, pattern=None, recursive=False):
                     path, name = os.path.split(abspath)
                     path += os.sep
                     name, ext = os.path.splitext(name)
-                    filelist.append(File(path, name, ext))
+                    filelist.append(File(path, name, ext[1:]))
     return filelist
 
 
@@ -260,18 +261,27 @@ def rename_file(old, new):
 
 def rename_files(fn_buffer):
     for k, v in fn_buffer.items():
-        if (k != fn_fn_buffer[k].full) and os.path.exists(fn_buffer[k].full):
+        if (k != fn_buffer[k].full) and os.path.exists(fn_buffer[k].full):
             t = fn_buffer[k].name + fn_buffer[k].ext
             sys.exit("error while renaming {} to {}! -> {} already exists!".format(k, t, t))
     for k, v in sorted(fn_buffer.items()):
         rename_file(v.path + k, v.path + v.full)
 
 
+def output_undo_script(fn_buffer):
+    f = open("undo.sh", "w")
+    for k, v in fn_buffer.items():
+        f.write("mv {} {}\n".format(v.full, k))
+    f.close()
+
 def verify_fn_buffer(fn_buffer):
     for k1, v1 in fn_buffer.items():
         for k2, v2 in fn_buffer.items():
             if (k1 != k2) and (v1.full == v2.full):
-                sys.exit(ERRMSGS["duplicate"])
+                print(ERRMSGS["duplicate"])
+                print(v1.full)
+                print(v2.full)
+                sys.exit("")
 
 
 ################################################################################
@@ -297,8 +307,9 @@ def split_alphanumeric(string):
 # PARSING
 
 def parse_args(argv):
-    global YES_MODE
+    global UNDO
     global VERBOSITY_LEVEL
+    global YES_MODE
 
     actions = []
     l = len(argv)
@@ -371,8 +382,12 @@ def parse_args(argv):
                 msg = ERRMSGS["subs-type"]
                 sys.exit(msg)
 
-        elif (argv[i]) == "-n":
+        elif (argv[i] == "-n"):
             actions.append(Action("sanitize"))
+            i += 1
+
+        elif (argv[i] == "-u"):
+            UNDO = True
             i += 1
 
         elif (argv[i] == "-v"):
@@ -508,6 +523,9 @@ def handle_actions(actions):
             print_action(action)
             print_fn_buffer(fn_buffer)
         verify_fn_buffer(fn_buffer)
+    for k, v in fn_buffer.items():
+        if (k == v.full):
+            del fn_buffer[k]
     return fn_buffer
 
 
@@ -539,8 +557,7 @@ def handle_delete(action, fn_buffer):
 
 def handle_extension(action, fn_buffer):
     for k, v in fn_buffer.items():
-        e = process_extension(action.arg1, action.arg2, fn_buffer[k].name)
-        fn_buffer[k].set_ext(e)
+        fn_buffer[k] = process_extension(action.arg1, action.arg2, v)
     return fn_buffer
 
 
@@ -618,27 +635,20 @@ def process_delete(ini, end, name):
     return newname
 
 
-def process_extension(mode, ext, name):
+def process_extension(mode, ext, f):
     if (mode == "+"):
-        if (ext and name):
-            name += ('.' + ext)
-        return name, ext
+        # add the extension
+        if (f.ext and f.name):
+            f.name += '.' + ext
+        f.set_ext(ext)
     if (mode == "-"):
-        if (ext and name):
+        if (ext and f.name):
             # change the extension to ext
-            if ("." in name):
-                aux  = name.split(".")[-1]
-                name = name[0 : len(name) - len(aux) - 1]
-                name += ext
-            return name, ext
+            f.set_ext(ext)
         else:
             # remove the extension
-            if ("." in name):
-                ext  = name.split(".")[-1]
-                name = name[0 : len(name) - len(ext) - 1]
-                return name, ""
-            else:
-                return name, ""
+            f.set_ext("")
+    return f
 
 
 def process_insert(name, text, pos):
@@ -878,6 +888,8 @@ def main():
             print_fn_buffer(fn_buffer)
         confirmed = obtain_confirmation(fn_buffer)
 
+        if UNDO:
+            output_undo_script(fn_buffer)
         if confirmed:
             rename_files(fn_buffer)
 
