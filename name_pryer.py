@@ -22,6 +22,14 @@
 # - add some examples
 # - make pip friendly
 
+# - make tokenizer mode be able to specify the token separator
+# - make tokenizer mode recognize camelCase
+# - allow
+#   -s [ ' -' | ' .' | ' _' | '_-' | ... ]
+#   instead of
+#   -s [sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du ]
+# - general transliterate?
+
 # IDEAS:
 # - add flag to specify creation of an undo script, which when run will undo changes.
 # - add flag to specify operation only on files (default), only on dirs, or both.  -m [f | d | b]
@@ -30,7 +38,7 @@
 # - add flag to specify a filter by glob pattern , e.g. ``-g "*.mp3"``
 # - add a vim-like macro recording and playback system.
 # - find a way to express matches such as "two fields of alfanumeric characters"
-# - add name and word dictinaries to know what is a name, what is a preposition, 
+# - add name and word dictinaries to know what is a name, what is a preposition,
 #   noun, etc
 # - add a small expert system which knows how I like my files named and does that automatically
 
@@ -134,8 +142,8 @@ VERBOSITY_LEVEL = 1
 # mode 2: operate on fiels and directories
 FILE_MODE = 0 # operate on files only by default
 VALID_FLAGS = frozenset(
-    [ "-c", "-C", "-d", "-e", "+e", "f", "-h", "-i", "-n", "-p", "-r", "-s", 
-      "-y", "-v0", "-v1", "-v2", "-v3"
+    [ "-c", "-C", "-d", "-e", "+e", "f", "-h", "-i", "-n", "-p", "-r", "-s",
+      "-t", "-y", "-v0", "-v1", "-v2", "-v3"
     ])
 VALID_SUBTITUTION_OPTIONS = frozenset(
     ["sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"]
@@ -165,7 +173,9 @@ ERRMSGS = {
     "subs-type"       : "argument for -s may be one of: sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du",
     "verbosity-arity" : "-vX flag requires a parameter",
     "verbosity-type"  : "argument to -vX flag requires an integer between 0 and 3",
-    "duplicate"       : "action will result in two or more identical file names!"
+    "duplicate"       : "action will result in two or more identical file names!",
+    "tokenize-arity"  : "-t flag requires one parameter",
+    "too_many_tokens" : "a file has too many tokens"
 }
 
 SPLIT_REGEX        = re.compile(r"[a-zA-Z0-9]+|[^a-zA-Z0-9]+")
@@ -216,8 +226,8 @@ def escape_pattern(pattern):
 
 def get_file_listing(dir=os.getcwd(), mode=0, pattern=None, recursive=False):
     filelist = []
-    if (pattern):
-        if (dir != "/"): dir += "/"
+    if pattern:
+        if dir != "/": dir += "/"
         dir = escape_pattern(dir + pattern)
         listaux = glob.glob(dir)
     else:
@@ -227,7 +237,7 @@ def get_file_listing(dir=os.getcwd(), mode=0, pattern=None, recursive=False):
     if recursive:
         pass
     else:
-        if (mode == 0):
+        if mode == 0:
             # Get files
             for elem in listaux:
                 abspath = os.path.abspath(elem)
@@ -249,7 +259,7 @@ def init_buffer():
 
 def rename_file(old, new):
     try:
-        if (old == new):
+        if old == new:
             return True
         os.renames(old, new)
         return True
@@ -279,8 +289,7 @@ def verify_buffer(buffer):
 
 
 def split(string):
-    l = SPLIT_REGEX.findall(string)
-    return l
+    return SPLIT_REGEX.findall(string)
 
 
 def split_camel_case(string):
@@ -289,8 +298,7 @@ def split_camel_case(string):
 
 
 def split_alphanumeric(string):
-    s = ALPHANUMERIC_REGEX.findall(string)
-    return s
+    return ALPHANUMERIC_REGEX.findall(string)
 
 
 ################################################################################
@@ -307,18 +315,18 @@ def parse_args(argv):
         if False:
             pass
 
-        elif (argv[i] == "-c"):
+        elif argv[i] == "-c":
             msg =  ERRMSGS["case-arity"]
             i, actions = parse_one(argv, i, actions, "case", msg)
             if not (actions[-1].arg1 in VALID_CASE_OPTIONS):
                 msg = ERRMSGS["case-type"]
                 sys.exit(msg)
 
-        elif (argv[i] == "-C"):
+        elif argv[i] == "-C":
             actions.append(Action("camelcase"))
             i += 1
 
-        elif (argv[i] == "-d"):
+        elif argv[i] == "-d":
             msg = ERRMSGS["delete-arity"]
             i, actions = parse_two(argv, i, actions, "delete", msg)
             s1 = actions[-1].arg1
@@ -326,70 +334,74 @@ def parse_args(argv):
                 actions[-1].arg1 = int(s1)
             except ValueError:
                 sys.exit(ERRMSGS["delete-type-1"])
-            if (actions[-1].arg1 < 0):
+            if actions[-1].arg1 < 0:
                 sys.exit(ERRMSGS["delete-type-3"])
             s2 = actions[-1].arg2
-            if (s2 != "end"):
+            if s2 != "end":
                 try:
                     actions[-1].arg2 = int(s2)
                 except ValueError:
                     sys.exit(ERRMSGS["delete-type-2"])
-                if (actions[-1].arg2 < 0):
+                if actions[-1].arg2 < 0:
                     sys.exit(ERRMSGS["delete-type-3"])
 
-        elif (argv[i] in ["-e", "+e"]):
+        elif argv[i] in ["-e", "+e"]:
             i, actions = parse_extension(argv, i, actions)
 
-        elif (argv[i] == "-f"):
+        elif argv[i] == "-f":
             msg = ERRMSGS["file-arity"]
             i, actions = parse_one(argv, i, actions, "file", msg)
 
-        elif (argv[i] == "-i"):
+        elif argv[i] == "-i":
             msg = ERRMSGS["insert-arity"]
             i, actions = parse_two(argv, i, actions, "insert", msg)
             s = actions[-1].arg2
-            if (s != "end"):
+            if s != "end":
                 try:
                     actions[-1].arg2 = int(s)
                 except ValueError:
                     sys.exit(ERRMSGS["insert-type-1"])
-                if (actions[-1].arg2 < 0):
+                if actions[-1].arg2 < 0:
                     sys.exit(ERRMSGS["insert-type-2"])
 
-        elif (argv[i] == "-p"):
+        elif argv[i] == "-p":
             msg = ERRMSGS["pattern-arity"]
             i, actions = parse_two(argv, i, actions, "pattern", msg)
 
-        elif (argv[i] == "-r"):
+        elif argv[i] == "-r":
             msg = ERRMSGS["replace-arity"]
             i, actions = parse_two(argv, i, actions, "replace", msg)
 
-        elif (argv[i] == "-s"):
+        elif argv[i] == "-s":
             msg = ERRMSGS["subs-arity"]
             i, actions = parse_one(argv, i, actions, "substitute", msg)
-            if not (actions[-1].arg1 in VALID_SUBTITUTION_OPTIONS):
+            if not actions[-1].arg1 in VALID_SUBTITUTION_OPTIONS:
                 msg = ERRMSGS["subs-type"]
                 sys.exit(msg)
 
-        elif (argv[i]) == "-n":
+        elif argv[i] == "-t":
+            msg = ERRMSGS['tokenize-arity']
+            i, actions = parse_one(argv, i, actions, "tokenize", msg)
+
+        elif argv[i] == "-n":
             actions.append(Action("sanitize"))
             i += 1
 
-        elif (argv[i] == "-v"):
+        elif argv[i] == "-v":
             msg = ERRMSGS["verbosity-arity"]
             i, actions = parse_one(argv, i, actions, "verbosity", msg)
             try:
                 actions[-1].arg1 = int(actions[-1].arg1)
             except ValueError:
                 sys.exit(ERRMSGS["verbosity-type"])
-            if not (actions[-1].arg1 in [0, 1, 2, 3]):
+            if not actions[-1].arg1 in [0, 1, 2, 3]:
                 sys.exit(ERRMSGS["verbosity-type"])
 
-        elif (argv[i] == "-h"):
+        elif argv[i] == "-h":
             usage()
             sys.exit()
 
-        elif (argv[i] == "-y"):
+        elif argv[i] == "-y":
             YES_MODE = True
             i += 1
 
@@ -401,7 +413,7 @@ def parse_args(argv):
 
 
 def parse_one(argv, i, actions, action_name, errmsg):
-    if (i+1 < len(argv)):
+    if i + 1 < len(argv):
         actions.append(Action(action_name, argv[i+1]))
         i += 2
     else:
@@ -410,7 +422,7 @@ def parse_one(argv, i, actions, action_name, errmsg):
 
 
 def parse_two(argv, i, actions, action_name, errmsg):
-    if (i+2 < len(argv)):
+    if i + 2 < len(argv):
         actions.append(Action(action_name, argv[i+1], argv[i+2]))
         i += 3
     else:
@@ -421,13 +433,13 @@ def parse_two(argv, i, actions, action_name, errmsg):
 def parse_extension(argv, i, actions):
     l    = len(argv)
     mode = argv[i][0] # will be either + or -
-    if (i == l-1):
+    if i == l - 1:
         # this flag is the last flag
         action = Action("extension", mode)
         i += 1
-    elif (i + 1 < l):
+    elif i + 1 < l:
         # there is at least one more argument
-        if (argv[i+1] in VALID_FLAGS):
+        if argv[i+1] in VALID_FLAGS:
             # the next argument is a new flag
             action = Action("extension", mode)
             i += 1
@@ -435,7 +447,7 @@ def parse_extension(argv, i, actions):
             # the next argument is the value of the extension flag
             action = Action("extension", mode, argv[i+1])
             i += 2
-    if (mode == "+") and (action.arg2 == None):
+    if mode == "+" and action.arg2 == None:
         sys.exit(ERRMSGS["extension-arity"])
     actions.append( action )
     return i, actions
@@ -584,6 +596,12 @@ def handle_substitute(action, buffer):
     return buffer
 
 
+def handle_tokenize(action, buffer):
+    for k, v in buffer.items():
+        buffer[k].set_name(process_tokenize(action.arg1, v.name))
+    return buffer
+
+
 def handle_verbosity(action, buffer):
     process_verbosity(action.arg1)
     return buffer
@@ -602,14 +620,14 @@ def process_case(mode, name):
 
 
 def process_delete(ini, end, name):
-    if (end == "end"):
+    if end == "end":
         end = len(name)
-    elif (end > len(name)):
+    elif end > len(name):
         sys.exit(ERRMSGS["delete-index-2"])
 
-    if (ini > len(name)):
+    if ini > len(name):
         sys.exit(ERRMSGS["delete-index-1"])
-    elif (ini > end):
+    elif ini > end:
         sys.exit(ERRMSGS["delete-index-3"])
 
     textini = name[0:ini]
@@ -619,21 +637,21 @@ def process_delete(ini, end, name):
 
 
 def process_extension(mode, ext, name):
-    if (mode == "+"):
+    if mode == "+":
         if (ext and name):
             name += ('.' + ext)
         return name, ext
-    if (mode == "-"):
-        if (ext and name):
+    if mode == "-":
+        if ext and name:
             # change the extension to ext
-            if ("." in name):
+            if "." in name:
                 aux  = name.split(".")[-1]
                 name = name[0 : len(name) - len(aux) - 1]
                 name += ext
             return name, ext
         else:
             # remove the extension
-            if ("." in name):
+            if "." in name:
                 ext  = name.split(".")[-1]
                 name = name[0 : len(name) - len(ext) - 1]
                 return name, ""
@@ -642,7 +660,7 @@ def process_extension(mode, ext, name):
 
 
 def process_insert(name, text, pos):
-    if (pos == "end"):
+    if pos == "end":
         pos = len(name)
         newname = name + text
     elif (pos > len(name)):
@@ -681,7 +699,7 @@ def process_pattern_match(name, pattern_ini, pattern_end, count):
 
     try:
         search = repattern.search(name)
-        if (search):
+        if search:
             groups = search.groups()
             for i in range(len(groups)):
                 newname = newname.replace("{"+ str(i+1) +"}", groups[i])
@@ -697,17 +715,17 @@ def process_pattern_match(name, pattern_ini, pattern_end, count):
     cr = re.compile("{(num)([0-9]*)}|{(num)([0-9]*)(\+)([0-9]*)}")
     try:
         cg = cr.search(newname).groups()
-        if (len(cg) == 6):
-            if (cg[0] == "num"):
+        if len(cg) == 6:
+            if cg[0] == "num":
                 # {num2}
-                if (cg[1] != ""):
+                if cg[1] != "":
                     count = count.zfill(int(cg[1]))
                 newname = cr.sub(count, newname)
-            elif (cg[2] == "num") and (cg[4] == "+"):
+            elif cg[2] == "num" and cg[4] == "+":
                 # {num2+5}
-                if (cg[5] != ""):
+                if cg[5] != "":
                     count = str(int(count)+int(cg[5]))
-                if (cg[3] != ""):
+                if cg[3] != "":
                     count = count.zfill(int(cg[3]))
         newname = cr.sub(count, newname)
     except:
@@ -786,6 +804,47 @@ def process_substitute(mode, name):
     return SUBSTITUTE_FUNS[mode](name)
 
 
+def process_tokenize(mode, name):
+    token_refs = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    tokens     = split_alphanumeric(name)
+
+    if len(token_refs) < len(tokens):
+        sys.exit(ERRMSGS['too_many_tokens'])
+
+    i   = 0
+    t2i = {}
+    i2t = {}
+    for token in tokens:
+        i2t[token_refs[i]] = token
+        t2i[token]         = token_refs[i]
+        i += 1
+
+    print(name)
+    for token in tokens:
+        print(t2i[token] + ' ' * len(token), end="")
+    print("\n> ", end="")
+    sys.stdout.flush()
+
+    pattern = sys.stdin.readline()
+    result  = pattern[:-1]
+    try:
+        if mode == "1":
+            result = " ".join([ i2t[i] for i in result.strip().split(' ')])
+        elif mode == "2":
+            for i, t in i2t.items():
+                result = result.replace("{" + i + "}", t)
+        elif mode == "3":
+            for i in i2t.keys():
+                result = result.replace(i, "{" + i + "}")
+            for i, t in i2t.items():
+                result = result.replace("{" + i + "}", t)
+        else:
+            sys.exit("unknown mode: " ++ mode)
+    except Exception as e:
+        sys.exit("unknown error: ", e)
+    return result
+
+
 def process_verbosity(lvl):
     global VERBOSITY_LEVEL
     print("setting verbosity level to {}".format(lvl))
@@ -807,6 +866,7 @@ ACTION_HANDLERS = {
     "replace"    : handle_replace,
     "sanitize"   : handle_sanitize,
     "substitute" : handle_substitute,
+    "tokenize"   : handle_tokenize,
     "verbosity"  : handle_verbosity
 }
 CASE_FUNS = {
@@ -865,7 +925,7 @@ def usage():
 def main():
     actions = parse_args(sys.argv)
 
-    if (len(actions) > 0):
+    if len(actions) > 0:
         f = lambda x, y: x or y
         l = [(a.name == "verbosity") and (a.arg1 > 1) for a in actions]
         r = functools.reduce(f, l, False)
@@ -874,7 +934,7 @@ def main():
 
         buffer = handle_actions(actions)
 
-        if (VERBOSITY_LEVEL in [1, 2]):
+        if VERBOSITY_LEVEL in [1, 2]:
             print_buffer(buffer)
         confirmed = obtain_confirmation(buffer)
 

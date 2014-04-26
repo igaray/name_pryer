@@ -59,7 +59,7 @@ Yes mode. Do not ask for confirmation.
 Useful for non-interactive batch scripts.
 
 ---
-``-v [0 1 2 3]``
+``-v0 -v1 -v2 -v3``
 
 Verbosity level.
 
@@ -68,9 +68,9 @@ Verbosity level.
 * Level 2 will in addition list the actions to be applied.
 * Level 3 will in addition show the state of the file name buffer at each step.
 
-The ``-v`` flag counts as an action, but one that does not affect the file name
-buffer. It can be listed several times with different levels, interspersed among
-the other actions to raise or lower the verbosity during operation.
+The ``-vX`` flags count as actions, but do not affect the file name buffer.
+They can be listed several times with different levels, interspersed among the
+other actions to raise or lower the verbosity during operation.
 
 If the ``-v2`` or ``-v3`` parameter is present, regardless of position, a list
 of actions will be output at the beginning.
@@ -119,12 +119,12 @@ This is the most useful operator and is taken directly from **pyRenamer**'s code
 
 Transformations visit every file name in the buffer and transform them in some way.
 None of the transformations will affect the extension or the period just before
-the extension. 
+the extension.
 
 ---
 ``-C``
 
-Split words in camelCase. 
+Split words in camelCase.
 
 ---
 ``-c [lc | uc | tc | sc]``
@@ -170,6 +170,26 @@ The end is just before the last period.
 Sanitizes filenames by removing anything that is not an alphanumeric field.
 
 ---
+``-t [1 | 2 | 3]``
+
+Interactive tokenization mode. Tokenizes the file name and prints out
+each token with a reference character underneath it.
+It then waits for the user to input a pattern indicating how the tokens
+should be rearranged.
+
+If mode is 1, then the input pattern is expected to be simple a
+space-separated list of token indicators.
+
+If mode is 2, then the input pattern is expected to be a match expression
+similar to the ones used with the ``-p`` flag. The input string will be the
+new filename, after having all occurrences of ``{X}`` patterns replaced,
+where ``X`` is a token reference.
+
+If mode is 3, it behaves exactly the same as mode 2 except that the token
+references do not need to be surrounded by braces, but anything matching
+a token reference will be replaced by the referenced token.
+
+---
 ``-r X Y``
 
 Replace X with Y.
@@ -195,16 +215,17 @@ Convert one character to another.
 
 ### Examples
 
-<!-- ---
+<!--
 python3 name-pryer.py
 -s us -s sp -s pd -s du -s ud -s ds -s su -s up -s ps -s sd -s dp -s pu -r e x -c lc -c uc -c tc -c sc
 -i _ins_ 0 -i _ins_ 3 -i _ins_ end
 -d X 0
 -d X end
--d X Y -->
+-d X Y
+-->
 
 ---
-```
+```bash
 % pwd
 /Users/inaki/Music/Thriftworks - Deviation (2013)/Thriftworks - Deviation (2013)
 
@@ -293,7 +314,6 @@ Operate only on files matching the glob pattern.
 * Add a vim-like macro recording and playback system.
 
 ---
-* Interactive tokenization mode
-
-Tokenizes the file name, shows it, numbering the tokens, and waits for a pattern 
-indicating how the tokens should be rearranged.
+* Make PEP8 conforming.
+* Make pip friendly.
+* Add some examples in motion.
