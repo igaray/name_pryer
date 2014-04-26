@@ -292,3 +292,8 @@ Operate only on files matching the glob pattern.
 ---
 * Add a vim-like macro recording and playback system.
 
+---
+* Interactive tokenization mode
+
+Tokenizes the file name, shows it, numbering the tokens, and waits for a pattern 
+indicating how the tokens should be rearranged.
