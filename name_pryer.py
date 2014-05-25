@@ -224,7 +224,10 @@ class File:
         self.path = path
         self.name = name
         self.ext  = ext
-        self.full = name + ext
+        if ext:
+            self.full = name + "." + ext
+        else:
+            self.full = name
 
     def set_name(self, name):
         self.name = name
@@ -311,6 +314,14 @@ def verify_fn_buffer(fn_buffer):
                 print(v1.full)
                 print(v2.full)
                 sys.exit("")
+
+
+def clean_fn_buffer(fn_buffer):
+    new_fn_buffer = fn_buffer.copy()
+    for k, v in fn_buffer.items():
+        if (k == v.full):
+            del new_fn_buffer[k]
+    return new_fn_buffer
 
 
 ################################################################################
@@ -554,10 +565,7 @@ def handle_actions(actions):
             print_action(action)
             print_fn_buffer(fn_buffer)
         verify_fn_buffer(fn_buffer)
-    for k, v in fn_buffer.items():
-        if (k == v.full):
-            del fn_buffer[k]
-    return fn_buffer
+    return clean_fn_buffer(fn_buffer)
 
 
 def handle_camel_case(action, fn_buffer):
