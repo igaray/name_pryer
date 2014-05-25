@@ -24,11 +24,8 @@
 
 # - make tokenizer mode be able to specify the token separator
 # - make tokenizer mode recognize camelCase
-# - allow
-#   -s [ ' -' | ' .' | ' _' | '_-' | ... ]
-#   instead of
-#   -s [sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du ]
-# - general transliterate?
+
+# - make -c tc not uppercase words like 'of', 'and', 'the' except at the beginning
 
 # IDEAS:
 # - add flag to specify creation of an undo script, which when run will undo changes.
@@ -816,7 +813,8 @@ def process_tokenize(mode, name):
     i2t = {}
     for token in tokens:
         i2t[token_refs[i]] = token
-        t2i[token]         = token_refs[i]
+        if not token in t2i:
+            t2i[token] = token_refs[i]
         i += 1
 
     print(name)
