@@ -15,7 +15,7 @@
 **name-pryer** is a simple command-line script for manipulating
 file names, a file name swiss army knife.
 It operates on single files or groups of files.
-It's name (and code) is an anagram of
+Its name (and code) is an anagram of
 [pyRenamer](https://github.com/SteveRyherd/pyRenamer)
 by Adolfo González Blázquez, from which it inherits much.
 
