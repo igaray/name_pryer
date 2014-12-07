@@ -106,14 +106,14 @@ This is the most useful operator and is taken directly from **pyRenamer**'s code
 ``{randX}``     | Generates a random number from 0 to **X**.
 ``{randX-Y}``   | Generates a random number from **X** to **Y**.
 ``{randX-Y,Z}`` | Generates a random number from **X** to **Y**, padded to **Z**. characters.
-``{date}``      |
-``{year}``      |
-``{month}``     |
-``{monthname}`` |
-``{monthsimp}`` |
-``{day}``       |
-``{dayname}``   |
-``{daysimp}``   |
+``{date}``      | Generates the date (e.g. 2014-12-31)
+``{year}``      | Generates the year (e.g. 2014)
+``{month}``     | Generates the month number (e.g. 12)
+``{monthname}`` | Generates the month’s name (December)
+``{monthsimp}`` | Generates the months abbreviated name (e.g. Dec)
+``{day}``       | Generates the day’s number (31)
+``{dayname}``   | Generates the day’s name (e.g. Wednesday)
+``{daysimp}``   | Generates the day’s abbreviated name (e.g. Wed)
 
 ### Transformations
 

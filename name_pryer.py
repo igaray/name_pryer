@@ -86,14 +86,14 @@ Usage:
         {@}         Trash
         {numX+Y}    Number, padded to X characters with leading 0s, step by Y
         {randX-Y,Z} Random number between X and Y padded to Z characters
-        {date}
-        {year}
-        {month}
-        {monthname}
-        {monthsimp}
-        {day}
-        {dayname}
-        {daysimp}
+        {date}      Date (2014-12-31)
+        {year}      Year (2014)
+        {month}     Month number (12)
+        {monthname} Month name (December)
+        {monthsimp} Month simple name (Dec)
+        {day}       Day number (31)
+        {dayname}   Day name (Wednesday)
+        {daysimp}   Day simple name (Wed)
 
     -c [lc | uc | tc | sc]
         Change case:
@@ -188,7 +188,7 @@ UNDO = False
 # lvl 2: verbose, show actions and file name buffer before getting confirmation
 # lvl 3: very verbose, show actions and file name buffer state after each action
 VALID_FLAGS = frozenset(
-    [ "-c", "-C", "-d", "-e", "+e", "-f", "-h", "-i", "-n", "-p", "-r", "-s", 
+    [ "-c", "-C", "-d", "-e", "+e", "-f", "-h", "-i", "-n", "-p", "-r", "-s",
       "-u", "-v", "-y"
     ])
 VALID_SUBTITUTION_OPTIONS = frozenset(
@@ -781,14 +781,14 @@ def process_pattern_match(name, pattern_ini, pattern_end, count):
     newname = newname.replace("{dir}", dir)
 
     # Some date replacements
-    newname = newname.replace("{date}",      time.strftime("%d%b%Y", time.localtime()))
-    newname = newname.replace("{year}",      time.strftime("%Y",     time.localtime()))
-    newname = newname.replace("{month}",     time.strftime("%m",     time.localtime()))
-    newname = newname.replace("{monthname}", time.strftime("%B",     time.localtime()))
-    newname = newname.replace("{monthsimp}", time.strftime("%b",     time.localtime()))
-    newname = newname.replace("{day}",       time.strftime("%d",     time.localtime()))
-    newname = newname.replace("{dayname}",   time.strftime("%A",     time.localtime()))
-    newname = newname.replace("{daysimp}",   time.strftime("%a",     time.localtime()))
+    newname = newname.replace("{date}",      time.strftime("%Y-%m-%d", time.localtime()))
+    newname = newname.replace("{year}",      time.strftime("%Y",       time.localtime()))
+    newname = newname.replace("{month}",     time.strftime("%m",       time.localtime()))
+    newname = newname.replace("{monthname}", time.strftime("%B",       time.localtime()))
+    newname = newname.replace("{monthsimp}", time.strftime("%b",       time.localtime()))
+    newname = newname.replace("{day}",       time.strftime("%d",       time.localtime()))
+    newname = newname.replace("{dayname}",   time.strftime("%A",       time.localtime()))
+    newname = newname.replace("{daysimp}",   time.strftime("%a",       time.localtime()))
 
     # Replace {rand} with random number between 0 and 100.
     # If {rand500} the number will be between 0 and 500
