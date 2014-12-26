@@ -192,8 +192,8 @@ VALID_FLAGS = frozenset(
       "-u", "-v", "-y"
     ])
 VALID_SUBTITUTION_OPTIONS = frozenset(
-    ["sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"]
-    )
+    [ "sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"
+    ])
 VALID_CASE_OPTIONS = frozenset(["lc", "uc", "tc", "sc"])
 VERBOSITY_LEVEL = 1
 YES_MODE = False
@@ -224,18 +224,20 @@ class File:
         self.path = path
         self.name = name
         self.ext  = ext
-        if ext:
-            self.full = name + "." + ext
+        # full is a read-only attribute which stores the filename inlcuding the
+        # final period and extension
+
+    def full(self):
+        if self.ext:
+            return self.name + "." + self.ext
         else:
-            self.full = name
+            return self.name
 
     def set_name(self, name):
         self.name = name
-        self.full = name + "." + self.ext
 
     def set_ext(self, ext):
-        self.ext  = ext
-        self.full = self.name + "." + ext
+        self.ext = ext
 
 
 ################################################################################
@@ -276,7 +278,7 @@ def init_fn_buffer():
     fn_buffer = {}
     files = get_file_listing()
     for f in files:
-        fn_buffer[f.full] = f
+        fn_buffer[f.full()] = f
     return fn_buffer
 
 
@@ -293,33 +295,34 @@ def rename_file(old, new):
 
 def rename_files(fn_buffer):
     for k, v in fn_buffer.items():
-        if (k != fn_buffer[k].full) and os.path.exists(fn_buffer[k].full):
+        if (k != fn_buffer[k].full()) and os.path.exists(fn_buffer[k].full()):
             t = fn_buffer[k].name + fn_buffer[k].ext
             sys.exit("error while renaming {} to {}! -> {} already exists!".format(k, t, t))
     for k, v in sorted(fn_buffer.items()):
-        rename_file(v.path + k, v.path + v.full)
+        rename_file(v.path + k, v.path + v.full())
 
 
 def output_undo_script(fn_buffer):
     f = open("undo.sh", "w")
     for k, v in fn_buffer.items():
-        f.write("mv {} {}\n".format(v.full, k))
+        f.write("mv {} {}\n".format(v.full(), k))
     f.close()
+
 
 def verify_fn_buffer(fn_buffer):
     for k1, v1 in fn_buffer.items():
         for k2, v2 in fn_buffer.items():
-            if (k1 != k2) and (v1.full == v2.full):
+            if (k1 != k2) and (v1.full() == v2.full()):
                 print(ERRMSGS["duplicate"])
-                print(v1.full)
-                print(v2.full)
+                print(v1.full())
+                print(v2.full())
                 sys.exit("")
 
 
 def clean_fn_buffer(fn_buffer):
     new_fn_buffer = fn_buffer.copy()
     for k, v in fn_buffer.items():
-        if (k == v.full):
+        if (k == v.full()):
             del new_fn_buffer[k]
     return new_fn_buffer
 
@@ -343,6 +346,7 @@ def split_alphanumeric(string):
 
 ################################################################################
 # PARSING
+
 
 def parse_args(argv):
     global UNDO
@@ -485,7 +489,7 @@ def parse_extension(argv, i, actions):
     elif i + 1 < l:
         # there is at least one more argument
         if argv[i+1] in VALID_FLAGS:
-            # the next argument is a new flag
+            # thane next argument is a new flag
             action = Action("extension", mode)
             i += 1
         else:
@@ -547,7 +551,7 @@ def print_fn_buffer(fn_buffer):
         print("{}{}=> {}".format(
             k,
             (" " * (maxlen - len(k) + 1)),
-            v.full
+            v.full()
         ))
     print()
 
@@ -596,7 +600,9 @@ def handle_delete(action, fn_buffer):
 
 def handle_extension(action, fn_buffer):
     for k, v in fn_buffer.items():
-        fn_buffer[k] = process_extension(action.arg1, action.arg2, v)
+        name, ext = process_extension(action.arg1, action.arg2, v.name)
+        fn_buffer[k].set_name(name)
+        fn_buffer[k].set_ext(ext)
     return fn_buffer
 
 
@@ -682,9 +688,10 @@ def process_delete(ini, end, name):
 
 def process_extension(mode, ext, name):
     if mode == "+":
-        if (ext and name):
-            name += ('.' + ext)
-        return name, ext
+        pass
+        # add an extension
+        # if (ext and name):
+            # name += ('.' + ext)
     if mode == "-":
         if ext and name:
             # change the extension to ext
@@ -692,15 +699,16 @@ def process_extension(mode, ext, name):
                 aux  = name.split(".")[-1]
                 name = name[0 : len(name) - len(aux) - 1]
                 name += ext
-            return name, ext
         else:
             # remove the extension
             if "." in name:
                 ext  = name.split(".")[-1]
                 name = name[0 : len(name) - len(ext) - 1]
-                return name, ""
+                ext  = ""
             else:
-                return name, ""
+                ext  = ""
+    return name, ext
+
 
 def process_insert(name, text, pos):
     if pos == "end":
@@ -933,6 +941,7 @@ SUBSTITUTE_FUNS = {
     "ds" : lambda x: x.replace("-", " "),
     "du" : lambda x: x.replace("-", "_")
 }
+
 ################################################################################
 # MAIN
 
