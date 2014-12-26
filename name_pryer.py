@@ -16,31 +16,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-# TODO:
-
-# - pep8 conforming
-# - add some examples
-# - make pip friendly
-
-# - make tokenizer mode be able to specify the token separator
-# - make tokenizer mode recognize camelCase
-
-# - make -c tc not uppercase words like 'of', 'and', 'the' except at the beginning
-
-# IDEAS:
-# - add flag to remove one or all matches of a string
-# - add flag to cleanup whitespace (remove duplicates and trim)
-# - add flag to specify creation of an undo script, which when run will undo changes.
-# - add flag to specify operation only on files (default), only on dirs, or both.  -m [f | d | b]
-# - add flag to specify working directory, default is current working directory.
-# - add flag to specify recursive operation.
-# - add flag to specify a filter by glob pattern , e.g. ``-g "*.mp3"``
-# - add a vim-like macro recording and playback system.
-# - find a way to express matches such as "two fields of alfanumeric characters"
-# - add name and word dictinaries to know what is a name, what is a preposition,
-#   noun, etc
-# - add a small expert system which knows how I like my files named and does that automatically
-
 import os
 import re
 import sys
@@ -305,7 +280,7 @@ def rename_files(fn_buffer):
 def output_undo_script(fn_buffer):
     f = open("undo.sh", "w")
     for k, v in fn_buffer.items():
-        f.write("mv {} {}\n".format(v.full(), k))
+        f.write('mv "{}" "{}"\n'.format(v.full(), k))
     f.close()
 
 
@@ -357,20 +332,15 @@ def parse_args(argv):
     l = len(argv)
     i = 1
     while (i < l):
-        if False:
-            pass
-
-        elif argv[i] == "-c":
+        if argv[i] == "-c":
             msg =  ERRMSGS["case-arity"]
             i, actions = parse_one(argv, i, actions, "case", msg)
             if not (actions[-1].arg1 in VALID_CASE_OPTIONS):
                 msg = ERRMSGS["case-type"]
                 sys.exit(msg)
-
         elif argv[i] == "-C":
             actions.append(Action("camelcase"))
             i += 1
-
         elif argv[i] == "-d":
             msg = ERRMSGS["delete-arity"]
             i, actions = parse_two(argv, i, actions, "delete", msg)
@@ -389,14 +359,11 @@ def parse_args(argv):
                     sys.exit(ERRMSGS["delete-type-2"])
                 if actions[-1].arg2 < 0:
                     sys.exit(ERRMSGS["delete-type-3"])
-
         elif argv[i] in ["-e", "+e"]:
             i, actions = parse_extension(argv, i, actions)
-
         elif argv[i] == "-f":
             msg = ERRMSGS["file-arity"]
             i, actions = parse_one(argv, i, actions, "file", msg)
-
         elif argv[i] == "-i":
             msg = ERRMSGS["insert-arity"]
             i, actions = parse_two(argv, i, actions, "insert", msg)
@@ -408,34 +375,27 @@ def parse_args(argv):
                     sys.exit(ERRMSGS["insert-type-1"])
                 if actions[-1].arg2 < 0:
                     sys.exit(ERRMSGS["insert-type-2"])
-
         elif argv[i] == "-n":
             actions.append(Action("sanitize"))
             i += 1
-
         elif argv[i] == "-p":
             msg = ERRMSGS["pattern-arity"]
             i, actions = parse_two(argv, i, actions, "pattern", msg)
-
         elif argv[i] == "-r":
             msg = ERRMSGS["replace-arity"]
             i, actions = parse_two(argv, i, actions, "replace", msg)
-
         elif argv[i] == "-s":
             msg = ERRMSGS["subs-arity"]
             i, actions = parse_one(argv, i, actions, "substitute", msg)
             if not actions[-1].arg1 in VALID_SUBTITUTION_OPTIONS:
                 msg = ERRMSGS["subs-type"]
                 sys.exit(msg)
-
         elif argv[i] == "-t":
             msg = ERRMSGS['tokenize-arity']
             i, actions = parse_one(argv, i, actions, "tokenize", msg)
-
         elif argv[i] == "-u":
             UNDO = True
             i += 1
-
         elif argv[i] == "-v":
             msg = ERRMSGS["verbosity-arity"]
             i, actions = parse_one(argv, i, actions, "verbosity", msg)
@@ -445,15 +405,12 @@ def parse_args(argv):
                 sys.exit(ERRMSGS["verbosity-type"])
             if not actions[-1].arg1 in [0, 1, 2, 3]:
                 sys.exit(ERRMSGS["verbosity-type"])
-
         elif argv[i] == "-h":
             usage()
             sys.exit()
-
         elif argv[i] == "-y":
             YES_MODE = True
             i += 1
-
         else:
             usage()
             msg = "unrecognized flag: {}".format(argv[i])

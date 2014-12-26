@@ -213,6 +213,11 @@ Convert one character to another.
   * **ds**: dashes to spaces
   * **du**: dashes to underscores
 
+---
+``-u``
+
+Creates a script undo.sh which may be run to undo the last renaming operations.
+
 ### Examples
 
 <!--
@@ -273,11 +278,6 @@ y
 ### TODO
 
 ---
-Add flag to specify creation of an undo script, which when run will undo changes.
-
-``-u``
-
----
 * Add flag to specify operation only on files (default), only on dirs, or both.
 
 ``-m [f | d | b]``
@@ -311,9 +311,26 @@ Recursive operation.
 Operate only on files matching the glob pattern.
 
 ---
-* Add a vim-like macro recording and playback system.
-
----
 * Make PEP8 conforming.
 * Make pip friendly.
 * Add some examples in motion.
+
+<!--
+- make tokenizer mode be able to specify the token separator
+- make tokenizer mode recognize camelCase
+- make -c tc not uppercase words like 'of', 'and', 'the' except at the beginning
+
+IDEAS:
+- add flag to remove one or all matches of a string
+- add flag to cleanup whitespace (remove duplicates and trim)
+- add flag to specify creation of an undo script, which when run will undo changes.
+- add flag to specify operation only on files (default), only on dirs, or both.  -m [f | d | b]
+- add flag to specify working directory, default is current working directory.
+- add flag to specify recursive operation.
+- add flag to specify a filter by glob pattern , e.g. ``-g "*.mp3"``
+- add a vim-like macro recording and playback system.
+- find a way to express matches such as "two fields of alfanumeric characters"
+- add name and word dictinaries to know what is a name, what is a preposition,
+  noun, etc
+- add a small expert system which knows how I like my files named and does that automatically
+-->
