@@ -89,6 +89,16 @@ value, so be sure to specify this at the beginning, or it will be
 difficult to have it match something.
 
 ---
+``-m [f | d | b]``
+
+Operation mode.
+
+* Options:
+  * **f**: Operate only on files (default).
+  * **d**: Operate only on directories.
+  * **b**: Operate both on directories and files.
+
+---
 ``-p SOURCE_PATTERN DESTINATION_PATTERN``
 
 The pattern matching filter makes regular expressions usable.
@@ -278,18 +288,6 @@ y
 ### TODO
 
 ---
-* Add flag to specify operation only on files (default), only on dirs, or both.
-
-``-m [f | d | b]``
-
-Operation mode.
-
-* Options:
-  * **f**: Operate only on files (default).
-  * **d**: Operate only on directories.
-  * **b**: Operate both on directories and files.
-
----
 * Add flag to specify working directory, default is current working directory.
 
 ``-D DIR``
@@ -316,6 +314,7 @@ Operate only on files matching the glob pattern.
 * Add some examples in motion.
 
 <!--
+- replace global variables by a configuration object that is passed around
 - make tokenizer mode be able to specify the token separator
 - make tokenizer mode recognize camelCase
 - make -c tc not uppercase words like 'of', 'and', 'the' except at the beginning

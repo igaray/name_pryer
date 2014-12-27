@@ -151,7 +151,8 @@ ERRMSGS = {
     "verbosity-type"  : "argument to -vX flag requires an integer between 0 and 3",
     "duplicate"       : "action will result in two or more identical file names!",
     "tokenize-arity"  : "-t flag requires one parameter",
-    "too_many_tokens" : "a file has too many tokens"
+    "too_many_tokens" : "a file has too many tokens",
+    "filemode-arity"  : "-m flag requires one parameter: [f | d | b]"
 }
 # mode 0: operate on files only
 # mode 1: operate on directories only
@@ -163,8 +164,8 @@ UNDO = False
 # lvl 2: verbose, show actions and file name buffer before getting confirmation
 # lvl 3: very verbose, show actions and file name buffer state after each action
 VALID_FLAGS = frozenset(
-    [ "-c", "-C", "-d", "-e", "+e", "-f", "-h", "-i", "-n", "-p", "-r", "-s",
-      "-u", "-v", "-y"
+    [ "-c", "-C", "-d", "-e", "+e", "-f", "-h", "-i", "-m", "-n", "-p", "-r",
+      "-s", "-u", "-v", "-y"
     ])
 VALID_SUBTITUTION_OPTIONS = frozenset(
     [ "sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"
@@ -172,6 +173,7 @@ VALID_SUBTITUTION_OPTIONS = frozenset(
 VALID_CASE_OPTIONS = frozenset(["lc", "uc", "tc", "sc"])
 VERBOSITY_LEVEL = 1
 YES_MODE = False
+FILE_MODE = 'f'
 
 SPLIT_REGEX        = re.compile(r"[a-zA-Z0-9]+|[^a-zA-Z0-9]+")
 FIRST_CAP_REGEX    = re.compile(r"(.)([A-Z][a-z]+)")
@@ -224,28 +226,43 @@ def escape_pattern(pattern):
     return pattern.replace("[", "[[]")
 
 
-def get_file_listing(dir=os.getcwd(), mode=0, pattern=None, recursive=False):
+def get_file_listing(directory=os.getcwd()):
     filelist = []
-    if pattern:
-        if dir != "/": dir += "/"
-        dir = escape_pattern(dir + pattern)
-        listaux = glob.glob(dir)
-    else:
-        listaux = os.listdir(dir)
 
+    listaux = os.listdir(directory)
     listaux.sort(key=str.lower)
-    if recursive:
-        pass
-    else:
-        if mode == 0:
-            # Get files
-            for elem in listaux:
-                abspath = os.path.abspath(elem)
-                if not os.path.isdir(abspath):
-                    path, name = os.path.split(abspath)
-                    path += os.sep
-                    name, ext = os.path.splitext(name)
-                    filelist.append(File(path, name, ext[1:]))
+
+    if FILE_MODE == 'f':
+        # Get files
+        for elem in listaux:
+            abspath = os.path.abspath(elem)
+            if not os.path.isdir(abspath):
+                path, name = os.path.split(abspath)
+                path += os.sep
+                name, ext = os.path.splitext(name)
+                filelist.append(File(path, name, ext[1:]))
+
+    elif FILE_MODE == 'd':
+        # Get directories
+        for elem in listaux:
+            abspath = os.path.abspath(elem)
+            if os.path.isdir(abspath):
+                path, name = os.path.split(abspath)
+                path += os.sep
+                filelist.append(File(path, name, ""))
+
+    elif FILE_MODE == 'b':
+        # Get both
+        for elem in listaux:
+            abspath = os.path.abspath(elem)
+            path, name = os.path.split(abspath)
+            path += os.sep
+            if os.path.isdir(abspath):
+                filelist.append(File(path, name, ""))
+            else:
+                name, ext = os.path.splitext(name)
+                filelist.append(File(path, name, ext[1:]))
+
     return filelist
 
 
@@ -327,6 +344,7 @@ def parse_args(argv):
     global UNDO
     global VERBOSITY_LEVEL
     global YES_MODE
+    global FILE_MODE
 
     actions = []
     l = len(argv)
@@ -338,9 +356,11 @@ def parse_args(argv):
             if not (actions[-1].arg1 in VALID_CASE_OPTIONS):
                 msg = ERRMSGS["case-type"]
                 sys.exit(msg)
+
         elif argv[i] == "-C":
             actions.append(Action("camelcase"))
             i += 1
+
         elif argv[i] == "-d":
             msg = ERRMSGS["delete-arity"]
             i, actions = parse_two(argv, i, actions, "delete", msg)
@@ -359,11 +379,14 @@ def parse_args(argv):
                     sys.exit(ERRMSGS["delete-type-2"])
                 if actions[-1].arg2 < 0:
                     sys.exit(ERRMSGS["delete-type-3"])
+
         elif argv[i] in ["-e", "+e"]:
             i, actions = parse_extension(argv, i, actions)
+
         elif argv[i] == "-f":
             msg = ERRMSGS["file-arity"]
             i, actions = parse_one(argv, i, actions, "file", msg)
+
         elif argv[i] == "-i":
             msg = ERRMSGS["insert-arity"]
             i, actions = parse_two(argv, i, actions, "insert", msg)
@@ -375,27 +398,41 @@ def parse_args(argv):
                     sys.exit(ERRMSGS["insert-type-1"])
                 if actions[-1].arg2 < 0:
                     sys.exit(ERRMSGS["insert-type-2"])
+
+        elif argv[i] == "-m":
+            if argv[i+1] in ['f', 'd', 'b']:
+                FILE_MODE = argv[i+1]
+            else:
+                sys.exit(ERRMSGS["filemode-arity"])
+            i += 2
+
         elif argv[i] == "-n":
             actions.append(Action("sanitize"))
             i += 1
+
         elif argv[i] == "-p":
             msg = ERRMSGS["pattern-arity"]
             i, actions = parse_two(argv, i, actions, "pattern", msg)
+
         elif argv[i] == "-r":
             msg = ERRMSGS["replace-arity"]
             i, actions = parse_two(argv, i, actions, "replace", msg)
+
         elif argv[i] == "-s":
             msg = ERRMSGS["subs-arity"]
             i, actions = parse_one(argv, i, actions, "substitute", msg)
             if not actions[-1].arg1 in VALID_SUBTITUTION_OPTIONS:
                 msg = ERRMSGS["subs-type"]
                 sys.exit(msg)
+
         elif argv[i] == "-t":
             msg = ERRMSGS['tokenize-arity']
             i, actions = parse_one(argv, i, actions, "tokenize", msg)
+
         elif argv[i] == "-u":
             UNDO = True
             i += 1
+
         elif argv[i] == "-v":
             msg = ERRMSGS["verbosity-arity"]
             i, actions = parse_one(argv, i, actions, "verbosity", msg)
@@ -405,12 +442,15 @@ def parse_args(argv):
                 sys.exit(ERRMSGS["verbosity-type"])
             if not actions[-1].arg1 in [0, 1, 2, 3]:
                 sys.exit(ERRMSGS["verbosity-type"])
+
         elif argv[i] == "-h":
             usage()
             sys.exit()
+
         elif argv[i] == "-y":
             YES_MODE = True
             i += 1
+
         else:
             usage()
             msg = "unrecognized flag: {}".format(argv[i])
