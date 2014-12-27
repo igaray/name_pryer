@@ -2,7 +2,7 @@
 
 **pry** *transitive verb*
 
-1. to raise, move, or pull apart with a lever :  prize
+1. to raise, move, or pull apart with a lever: prize
 2. to extract, detach, or open with difficulty <pried the secret out of my sister>
 
 **pry** *noun*
@@ -314,22 +314,18 @@ Operate only on files matching the glob pattern.
 * Add some examples in motion.
 
 <!--
+TODO:
 - replace global variables by a configuration object that is passed around
-- make tokenizer mode be able to specify the token separator
-- make tokenizer mode recognize camelCase
-- make -c tc not uppercase words like 'of', 'and', 'the' except at the beginning
 
 IDEAS:
-- add flag to remove one or all matches of a string
-- add flag to cleanup whitespace (remove duplicates and trim)
-- add flag to specify creation of an undo script, which when run will undo changes.
-- add flag to specify operation only on files (default), only on dirs, or both.  -m [f | d | b]
+- make tokenizer mode be able to specify the token separator
 - add flag to specify working directory, default is current working directory.
 - add flag to specify recursive operation.
 - add flag to specify a filter by glob pattern , e.g. ``-g "*.mp3"``
-- add a vim-like macro recording and playback system.
+- modify camelcase flag to allow converting to/from camelcase
+- add flag to remove one or all matches of a string
 - find a way to express matches such as "two fields of alfanumeric characters"
-- add name and word dictinaries to know what is a name, what is a preposition,
-  noun, etc
+- add name and word dictinaries to know what is a name, what is a preposition, noun, etc
+- make -c tc not uppercase words like 'of', 'and', 'the' except at the beginning
 - add a small expert system which knows how I like my files named and does that automatically
 -->

@@ -28,13 +28,6 @@ import functools
 ################################################################################
 # GLOBALS
 
-"""
-    -m [f | d | b]
-        f: operate only on files (default)
-        d: operate only on directories
-        b: operate both on directories and files
-"""
-
 USAGE = """
 Usage:
     -h
@@ -47,6 +40,10 @@ Usage:
         lvl 3: show lvl 2 output and state of file name buffer after each step
         Counts as an action, so several may be present between other actions
         to raise or lower the verbosity during operation.
+    -m [f | d | b]
+        f: operate only on files (default)
+        d: operate only on directories
+        b: operate both on directories and files
     -y
         Yes mode, do not prompt for confirmation.
 
@@ -106,27 +103,6 @@ Usage:
             du: dashes to underscores
 """
 
-YES_MODE = False
-# lvl 0: silent running
-# lvl 1: default, show file name buffer before getting confirmation
-# lvl 2: verbose, show actions and file name buffer before getting confirmation
-# lvl 3: very verbose, show actions and file name buffer state after each action
-VERBOSITY_LEVEL = 1
-# mode 0: operate on files only
-# mode 1: operate on directories only
-# mode 2: operate on fiels and directories
-FILE_MODE = 0 # operate on files only by default
-VALID_FLAGS = frozenset(
-    [ "-c", "-C", "-d", "-e", "+e", "f", "-h", "-i", "-n", "-p", "-r", "-s",
-      "-t", "-y", "-v0", "-v1", "-v2", "-v3"
-    ])
-VALID_SUBTITUTION_OPTIONS = frozenset(
-    ["sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"]
-    )
-VALID_CASE_OPTIONS = frozenset(
-    ["lc", "uc", "tc", "sc"]
-    )
-
 ERRMSGS = {
     "file-arity"      : "-f flag requires a filename parameter",
     "case-arity"      : "-c flag requires a parameter",
@@ -154,15 +130,7 @@ ERRMSGS = {
     "too_many_tokens" : "a file has too many tokens",
     "filemode-arity"  : "-m flag requires one parameter: [f | d | b]"
 }
-# mode 0: operate on files only
-# mode 1: operate on directories only
-# mode 2: operate on fiels and directories
-FILE_MODE = 0 # operate on files only by default
-UNDO = False
-# lvl 0: silent running
-# lvl 1: default, show file name buffer before getting confirmation
-# lvl 2: verbose, show actions and file name buffer before getting confirmation
-# lvl 3: very verbose, show actions and file name buffer state after each action
+
 VALID_FLAGS = frozenset(
     [ "-c", "-C", "-d", "-e", "+e", "-f", "-h", "-i", "-m", "-n", "-p", "-r",
       "-s", "-u", "-v", "-y"
@@ -171,9 +139,12 @@ VALID_SUBTITUTION_OPTIONS = frozenset(
     [ "sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"
     ])
 VALID_CASE_OPTIONS = frozenset(["lc", "uc", "tc", "sc"])
+
+# lvl 0: silent running
+# lvl 1: default, show file name buffer before getting confirmation
+# lvl 2: verbose, show actions and file name buffer before getting confirmation
+# lvl 3: very verbose, show actions and file name buffer state after each action
 VERBOSITY_LEVEL = 1
-YES_MODE = False
-FILE_MODE = 'f'
 
 SPLIT_REGEX        = re.compile(r"[a-zA-Z0-9]+|[^a-zA-Z0-9]+")
 FIRST_CAP_REGEX    = re.compile(r"(.)([A-Z][a-z]+)")
@@ -201,8 +172,6 @@ class File:
         self.path = path
         self.name = name
         self.ext  = ext
-        # full is a read-only attribute which stores the filename inlcuding the
-        # final period and extension
 
     def full(self):
         if self.ext:
@@ -217,6 +186,13 @@ class File:
         self.ext = ext
 
 
+class Config:
+
+    def __init__(self):
+        self.yes_mode = False
+        self.file_mode = 'f'
+        self.undo = False
+
 ################################################################################
 # FILE AND BUFFER HANDLING
 
@@ -226,13 +202,13 @@ def escape_pattern(pattern):
     return pattern.replace("[", "[[]")
 
 
-def get_file_listing(directory=os.getcwd()):
+def get_file_listing(config, directory=os.getcwd()):
     filelist = []
 
     listaux = os.listdir(directory)
     listaux.sort(key=str.lower)
 
-    if FILE_MODE == 'f':
+    if config.file_mode == 'f':
         # Get files
         for elem in listaux:
             abspath = os.path.abspath(elem)
@@ -242,7 +218,7 @@ def get_file_listing(directory=os.getcwd()):
                 name, ext = os.path.splitext(name)
                 filelist.append(File(path, name, ext[1:]))
 
-    elif FILE_MODE == 'd':
+    elif config.file_mode == 'd':
         # Get directories
         for elem in listaux:
             abspath = os.path.abspath(elem)
@@ -251,7 +227,7 @@ def get_file_listing(directory=os.getcwd()):
                 path += os.sep
                 filelist.append(File(path, name, ""))
 
-    elif FILE_MODE == 'b':
+    elif config.file_mode == 'b':
         # Get both
         for elem in listaux:
             abspath = os.path.abspath(elem)
@@ -266,9 +242,9 @@ def get_file_listing(directory=os.getcwd()):
     return filelist
 
 
-def init_fn_buffer():
+def init_fn_buffer(config):
     fn_buffer = {}
-    files = get_file_listing()
+    files = get_file_listing(config)
     for f in files:
         fn_buffer[f.full()] = f
     return fn_buffer
@@ -341,11 +317,7 @@ def split_alphanumeric(string):
 
 
 def parse_args(argv):
-    global UNDO
-    global VERBOSITY_LEVEL
-    global YES_MODE
-    global FILE_MODE
-
+    config = Config()
     actions = []
     l = len(argv)
     i = 1
@@ -401,7 +373,7 @@ def parse_args(argv):
 
         elif argv[i] == "-m":
             if argv[i+1] in ['f', 'd', 'b']:
-                FILE_MODE = argv[i+1]
+                config.file_mode = argv[i+1]
             else:
                 sys.exit(ERRMSGS["filemode-arity"])
             i += 2
@@ -430,7 +402,7 @@ def parse_args(argv):
             i, actions = parse_one(argv, i, actions, "tokenize", msg)
 
         elif argv[i] == "-u":
-            UNDO = True
+            config.undo = True
             i += 1
 
         elif argv[i] == "-v":
@@ -448,14 +420,14 @@ def parse_args(argv):
             sys.exit()
 
         elif argv[i] == "-y":
-            YES_MODE = True
+            config.yes_mode = True
             i += 1
 
         else:
             usage()
             msg = "unrecognized flag: {}".format(argv[i])
             sys.exit(msg)
-    return actions
+    return config, actions
 
 
 def parse_one(argv, i, actions, action_name, errmsg):
@@ -557,8 +529,8 @@ def print_fn_buffer(fn_buffer):
 # ACTION HANDLERS
 
 
-def handle_actions(actions):
-    fn_buffer = init_fn_buffer()
+def handle_actions(config, actions):
+    fn_buffer = init_fn_buffer(config)
     for action in actions:
         fn_buffer = ACTION_HANDLERS[action.name](action, fn_buffer)
         if (VERBOSITY_LEVEL > 2) and (action.name != "verbosity"):
@@ -644,7 +616,7 @@ def handle_substitute(action, fn_buffer):
 
 
 def handle_tokenize(action, fn_buffer):
-    for k, v in buffer.items():
+    for k, v in fn_buffer.items():
         fn_buffer[k].set_name(process_tokenize(action.arg1, v.name))
     return fn_buffer
 
@@ -954,8 +926,8 @@ def getch():
     return ch
 
 
-def obtain_confirmation(filename_fn_buffer):
-    if YES_MODE:
+def obtain_confirmation(config, filename_fn_buffer):
+    if config.yes_mode:
         return True
     else:
         print("y/n?")
@@ -973,7 +945,7 @@ def usage():
 
 
 def main():
-    actions = parse_args(sys.argv)
+    config, actions = parse_args(sys.argv)
 
     if len(actions) > 0:
         f = lambda x, y: x or y
@@ -982,11 +954,11 @@ def main():
         if r:
             print_actions(actions)
 
-        fn_buffer = handle_actions(actions)
+        fn_buffer = handle_actions(config, actions)
 
         if VERBOSITY_LEVEL in [1, 2]:
             print_fn_buffer(fn_buffer)
-        confirmed = obtain_confirmation(fn_buffer)
+        confirmed = obtain_confirmation(config, fn_buffer)
 
         if UNDO:
             output_undo_script(fn_buffer)
