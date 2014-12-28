@@ -81,7 +81,7 @@ Filters will specify which files remain in the buffer in addition to
 applying transformations on the file names therein.
 
 ---
-``-f FILE``
+``-F FILE``
 
 Operate on a single file instead of all files in the current directory.
 Essentially drops all file names from the buffer that do not match its
@@ -89,7 +89,7 @@ value, so be sure to specify this at the beginning, or it will be
 difficult to have it match something.
 
 ---
-``-m [f | d | b]``
+``-M [f | d | b]``
 
 Operation mode.
 
@@ -97,6 +97,16 @@ Operation mode.
   * **f**: Operate only on files (default).
   * **d**: Operate only on directories.
   * **b**: Operate both on directories and files.
+
+---
+``-D DIR``
+
+Set working directory. Default is current directory.
+
+---
+``-R``
+
+Recurse directories, may be used in combination with `-m` and `-D`.
 
 ---
 ``-p SOURCE_PATTERN DESTINATION_PATTERN``
@@ -293,20 +303,6 @@ y
 ### TODO
 
 ---
-* Add flag to specify working directory, default is current working directory.
-
-``-D DIR``
-
-Set working directory. Default is current directory.
-
----
-* Add flag to specify recursive operation.
-
-``-R``
-
-Recursive operation.
-
----
 * Add flag to specify a filter by glob pattern , e.g. ``-g "*.mp3"``
 
 ``-g GLOB``
@@ -314,7 +310,6 @@ Recursive operation.
 Operate only on files matching the glob pattern.
 
 ---
-* Make PEP8 conforming.
 * Make pip friendly.
 * Add some examples in motion.
 

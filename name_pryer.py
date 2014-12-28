@@ -32,9 +32,11 @@ SHORT_USAGE = """
 Usage:
     -h
     -v [0 | 1 | 2 | 3]
-    -m [f | d | b]
     -y
-    -f FILENAME
+    -F FILENAME
+    -D DIR
+    -R
+    -M [f | d | b]
     -p SOURCE_PATTERN DESTINATION_PATTERN
         {#}                      {numX+Y}                         {monthname}
         {L}                      {randX-Y,Z}                      {monthsimp}
@@ -45,7 +47,6 @@ Usage:
     -C
     +C
     -d X (Y | end)
-    -D DIR
     +e EXT
     -e [EXT]
     -i X (Y | end)
@@ -68,16 +69,18 @@ Usage:
         lvl 3: show lvl 2 output and state of file name buffer after each step
         Counts as an action, so several may be present between other actions
         to raise or lower the verbosity during operation.
-    -m [f | d | b]
+    -y
+        Yes mode, do not prompt for confirmation.
+    -F FILENAME
+        Run on file FILENAME
+    -D DIR
+        Specify the working directory.
+    -R
+        Recurse directories.
+    -M [f | d | b]
         f: operate only on files (default)
         d: operate only on directories
         b: operate both on directories and files
-    -D DIR
-        Specify the working directory.
-    -f FILENAME
-        Run on file FILENAME
-    -y
-        Yes mode, do not prompt for confirmation.
     -p SOURCE_PATTERN DESTINATION_PATTERN
         Pattern match.
         {#}         Numbers
@@ -161,7 +164,7 @@ ERRMSGS = {
 }
 
 VALID_FLAGS = frozenset([
-    "-c", "-C", "+C", "-d", "-D", "-e", "+e", "-f", "-h", "-i", "-m", "-n",
+    "-c", "-C", "+C", "-d", "-D", "-e", "+e", "-F", "-h", "-i", "-M", "-n",
     "-p", "-r", "-R", "-s", "-u", "-v", "-y"
     ])
 VALID_SUBTITUTION_OPTIONS = frozenset([
@@ -188,6 +191,19 @@ SUBSTITUTE_FUNS = {}
 # CLASSES
 
 
+class Config:
+
+    def __init__(self):
+        self.file_mode = 'f'
+        self.yes_mode = False
+        self.undo = False
+        self.recursive = False
+        self.directory = os.getcwd()
+        rows, cols = os.popen('stty size', 'r').read().split()
+        self.rows = int(rows)
+        self.cols = int(cols)
+
+
 class Action:
     def __init__(self, name, arg1=None, arg2=None):
         self.name = name
@@ -207,20 +223,17 @@ class File:
         else:
             return self.name
 
+    def fullpath(self):
+        if self.ext:
+            return os.path.join(self.path, self.name + "." + self.ext)
+        else:
+            return os.path.join(self.path, self.name)
+
     def set_name(self, name):
         self.name = name
 
     def set_ext(self, ext):
         self.ext = ext
-
-
-class Config:
-
-    def __init__(self):
-        self.yes_mode = False
-        self.file_mode = 'f'
-        self.undo = False
-        self.directory = os.getcwd()
 
 
 ###############################################################################
@@ -233,49 +246,64 @@ def escape_pattern(pattern):
 
 
 def get_file_listing(config):
-    filelist = []
-    sorted_items = sorted(os.listdir(config.directory), key=str.lower)
-    listdir = [config.directory + os.sep + item for item in sorted_items]
+    result = []
 
+    cwd = config.directory
+    if config.recursive:
+        items = []
+        for root, subfolders, files in os.walk(cwd):
+            for item in subfolders:
+                items.append(os.path.join(root, item))
+            for item in files:
+                items.append(os.path.join(root, item))
+    else:
+        items = os.listdir(config.directory)
+        items = [os.path.join(config.directory, item) for item in items]
+
+    items.sort(key=str.lower)
     if config.file_mode == 'f':
         # Get files
-        for elem in list:
-            abspath = os.path.abspath(elem)
+        for item in items:
+            abspath = os.path.abspath(item)
             if not os.path.isdir(abspath):
                 path, name = os.path.split(abspath)
                 path += os.sep
                 name, ext = os.path.splitext(name)
-                filelist.append(File(path, name, ext[1:]))
+                result.append(File(path, name, ext[1:]))
 
     elif config.file_mode == 'd':
         # Get directories
-        for elem in list:
-            abspath = os.path.abspath(elem)
+        for item in items:
+            abspath = os.path.abspath(item)
             if os.path.isdir(abspath):
                 path, name = os.path.split(abspath)
                 path += os.sep
-                filelist.append(File(path, name, ""))
+                result.append(File(path, name, ""))
 
     elif config.file_mode == 'b':
         # Get both
-        for elem in list:
-            abspath = os.path.abspath(elem)
+        for item in items:
+            abspath = os.path.abspath(item)
             path, name = os.path.split(abspath)
             path += os.sep
             if os.path.isdir(abspath):
-                filelist.append(File(path, name, ""))
+                result.append(File(path, name, ""))
             else:
                 name, ext = os.path.splitext(name)
-                filelist.append(File(path, name, ext[1:]))
+                result.append(File(path, name, ext[1:]))
 
-    return filelist
+    return result
 
 
 def init_fn_buffer(config):
     fn_buffer = {}
     files = get_file_listing(config)
-    for f in files:
-        fn_buffer[f.full()] = f
+    if config.recursive:
+        for f in files:
+            fn_buffer[f.fullpath()] = f
+    else:
+        for f in files:
+            fn_buffer[f.full()] = f
     return fn_buffer
 
 
@@ -310,7 +338,7 @@ def output_undo_script(fn_buffer):
 def verify_fn_buffer(fn_buffer):
     for k1, v1 in fn_buffer.items():
         for k2, v2 in fn_buffer.items():
-            if (k1 != k2) and (v1.full() == v2.full()):
+            if (k1 != k2) and (v1.fullpath() == v2.fullpath()):
                 print(ERRMSGS["duplicate"])
                 print(v1.full())
                 print(v2.full())
@@ -398,7 +426,7 @@ def parse_args(argv):
         elif argv[i] in ["-e", "+e"]:
             i, actions = parse_extension(argv, i, actions)
 
-        elif argv[i] == "-f":
+        elif argv[i] == "-F":
             msg = ERRMSGS["file-arity"]
             i, actions = parse_one(argv, i, actions, "file", msg)
 
@@ -414,7 +442,7 @@ def parse_args(argv):
                 if actions[-1].arg2 < 0:
                     sys.exit(ERRMSGS["insert-type-2"])
 
-        elif argv[i] == "-m":
+        elif argv[i] == "-M":
             if argv[i+1] in ['f', 'd', 'b']:
                 config.file_mode = argv[i+1]
             else:
@@ -432,6 +460,10 @@ def parse_args(argv):
         elif argv[i] == "-r":
             msg = ERRMSGS["replace-arity"]
             i, actions = parse_two(argv, i, actions, "replace", msg)
+
+        elif argv[i] == "-R":
+            config.recursive = True
+            i += 1
 
         elif argv[i] == "-s":
             msg = ERRMSGS["subs-arity"]
@@ -554,17 +586,23 @@ def print_actions(actions):
     print()
 
 
-def print_fn_buffer(fn_buffer):
+def print_fn_buffer(config, fn_buffer):
     maxlen = 0
     for k in fn_buffer.keys():
         maxlen = max(maxlen, len(k))
 
-    for k, v in sorted(fn_buffer.items()):
-        print("{}{}=> {}".format(
-            k,
-            (" " * (maxlen - len(k) + 1)),
-            v.full()
-        ))
+    if config.recursive:
+        for k, v in sorted(fn_buffer.items()):
+            s = "{}{}=> {}".format(k, (" " * (maxlen-len(k)+1)), v.fullpath())
+            if len(s) > config.cols:
+                s = "{}\n    => {}".format(k, v.fullpath())
+            print(s)
+    else:
+        for k, v in sorted(fn_buffer.items()):
+            s = "{}{}=> {}".format(k, (" " * (maxlen-len(k)+1)), v.full())
+            if len(s) > config.cols:
+                s = "{}\n    => {}".format(k, v.full())
+            print(s)
     print()
 
 
@@ -579,7 +617,7 @@ def handle_actions(config, actions):
         if (VERBOSITY_LEVEL > 2) and (action.name != "verbosity"):
             print_sep()
             print_action(action)
-            print_fn_buffer(fn_buffer)
+            print_fn_buffer(config, fn_buffer)
         verify_fn_buffer(fn_buffer)
     return clean_fn_buffer(fn_buffer)
 
@@ -1012,7 +1050,7 @@ def main():
         fn_buffer = handle_actions(config, actions)
 
         if VERBOSITY_LEVEL in [1, 2]:
-            print_fn_buffer(fn_buffer)
+            print_fn_buffer(config, fn_buffer)
         confirmed = obtain_confirmation(config, fn_buffer)
 
         if config.undo:
