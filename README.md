@@ -137,6 +137,11 @@ the extension.
 Split words in camelCase.
 
 ---
+``+C``
+
+Join words separated by underscores into camelCase.
+
+---
 ``-c [lc | uc | tc | sc]``
 
 Change case.

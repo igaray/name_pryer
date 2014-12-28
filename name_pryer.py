@@ -46,7 +46,6 @@ Usage:
         b: operate both on directories and files
     -y
         Yes mode, do not prompt for confirmation.
-
     -f FILENAME
         Run on file FILENAME
     -p SOURCE_PATTERN DESTINATION_PATTERN
@@ -66,7 +65,6 @@ Usage:
         {day}       Day number (31)
         {dayname}   Day name (Wednesday)
         {daysimp}   Day simple name (Wed)
-
     -c [lc | uc | tc | sc]
         Change case:
             lc: lowercase
@@ -74,11 +72,15 @@ Usage:
             tc: title case
             sc: sentence case
     -C
-       Split camelCase words.
+        Split camelCase words.
+    +C
+        Join underscore words into camelCase.
     -d X (Y | end)
         Delete from position X to Y [or end]
-    [+|-]e [EXT]
-        Modify extension.
+    +e EXT
+        Add extension.
+    -e [EXT]
+        Modify or remove extension.
     -i X (Y | end)
         Insert X at position Y [or end]
         X must be a string
@@ -88,19 +90,16 @@ Usage:
     -r X Y
         Replace X with Y.
     -s [sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du ]
-        Substitute characters:
-            sd: spaces to dashes
-            sp: spaces to periods
-            su: spaces to underscores
-            ud: underscores to dashes
-            up: underscores to periods
-            us: underscores to spaces
-            pd: periods to dashes
-            ps: periods to space
-            pu: periods to underscores
-            dp: dashes to periods
-            ds: dashes to spaces
-            du: dashes to underscores
+        Substitute characters, X for Y, where X and Y may be one of:
+            s: spaces
+            d: dashes
+            u: underscores
+            p: periods
+    -t [1 | 2 | 3]
+        Tokenize and select tokens for filename pattern.
+        1: input pattern is a space-separated list of token refs
+        2: input pattern is a match expression
+        3: exactly as 2 except token refs do not need to be surrounded by braces
 """
 
 ERRMSGS = {
@@ -132,8 +131,8 @@ ERRMSGS = {
 }
 
 VALID_FLAGS = frozenset(
-    [ "-c", "-C", "-d", "-e", "+e", "-f", "-h", "-i", "-m", "-n", "-p", "-r",
-      "-s", "-u", "-v", "-y"
+    [ "-c", "-C", "+C", "-d", "-D", "-e", "+e", "-f", "-h", "-i", "-m", "-n",
+      "-p", "-r", "-R", "-s", "-u", "-v", "-y"
     ])
 VALID_SUBTITUTION_OPTIONS = frozenset(
     [ "sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"
@@ -192,6 +191,7 @@ class Config:
         self.yes_mode = False
         self.file_mode = 'f'
         self.undo = False
+        self.directory=os.getcwd()
 
 ################################################################################
 # FILE AND BUFFER HANDLING
@@ -202,7 +202,8 @@ def escape_pattern(pattern):
     return pattern.replace("[", "[[]")
 
 
-def get_file_listing(config, directory=os.getcwd()):
+def get_file_listing(config):
+    directory = config.directory
     filelist = []
 
     listaux = os.listdir(directory)
@@ -312,6 +313,9 @@ def split_alphanumeric(string):
     return ALPHANUMERIC_REGEX.findall(string)
 
 
+def join_camel_case(string):
+    return "".join( [ CASE_FUNS["sc"](x) for x in string.split("_") ] )
+
 ################################################################################
 # PARSING
 
@@ -329,8 +333,8 @@ def parse_args(argv):
                 msg = ERRMSGS["case-type"]
                 sys.exit(msg)
 
-        elif argv[i] == "-C":
-            actions.append(Action("camelcase"))
+        elif argv[i] in ["-C", "+C"]:
+            actions.append(Action("camelcase", argv[i][0]))
             i += 1
 
         elif argv[i] == "-d":
@@ -351,6 +355,10 @@ def parse_args(argv):
                     sys.exit(ERRMSGS["delete-type-2"])
                 if actions[-1].arg2 < 0:
                     sys.exit(ERRMSGS["delete-type-3"])
+
+        elif argv[i] == '-D':
+            config.directory = argv[i+1]
+            i += 2
 
         elif argv[i] in ["-e", "+e"]:
             i, actions = parse_extension(argv, i, actions)
@@ -543,7 +551,7 @@ def handle_actions(config, actions):
 
 def handle_camel_case(action, fn_buffer):
     for k, v, in fn_buffer.items():
-        fn_buffer[k].set_name(process_camel_case(v.name))
+        fn_buffer[k].set_name(process_camel_case(v.name, action.arg1))
     return fn_buffer
 
 
@@ -630,8 +638,11 @@ def handle_verbosity(action, fn_buffer):
 # ACTION PROCESSORS
 
 
-def process_camel_case(name):
-    return split_camel_case(name)
+def process_camel_case(name, mode):
+    if mode == '-':
+        return split_camel_case(name)
+    if mode == '+':
+        return join_camel_case(name)
 
 
 def process_case(mode, name):
@@ -960,7 +971,7 @@ def main():
             print_fn_buffer(fn_buffer)
         confirmed = obtain_confirmation(config, fn_buffer)
 
-        if UNDO:
+        if config.undo:
             output_undo_script(fn_buffer)
         if confirmed:
             rename_files(fn_buffer)
