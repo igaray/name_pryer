@@ -25,7 +25,7 @@ import tty
 import termios
 import functools
 
-################################################################################
+###############################################################################
 # GLOBALS
 
 SHORT_USAGE = """
@@ -45,6 +45,7 @@ Usage:
     -C
     +C
     -d X (Y | end)
+    -D DIR
     +e EXT
     -e [EXT]
     -i X (Y | end)
@@ -71,10 +72,12 @@ Usage:
         f: operate only on files (default)
         d: operate only on directories
         b: operate both on directories and files
-    -y
-        Yes mode, do not prompt for confirmation.
+    -D DIR
+        Specify the working directory.
     -f FILENAME
         Run on file FILENAME
+    -y
+        Yes mode, do not prompt for confirmation.
     -p SOURCE_PATTERN DESTINATION_PATTERN
         Pattern match.
         {#}         Numbers
@@ -126,63 +129,62 @@ Usage:
         Tokenize and select tokens for filename pattern.
         1: input pattern is a space-separated list of token refs
         2: input pattern is a match expression
-        3: exactly as 2 except token refs do not need to be surrounded by braces
+        3: same as 2 except token refs do not need to be surrounded by braces
 """
 
 ERRMSGS = {
-    "file-arity"      : "-f flag requires a filename parameter",
-    "case-arity"      : "-c flag requires a parameter",
-    "case-type"       : "argument for -c may be one of: lc uc tc sc",
-    "extension-arity" : "+e flag requires a parameter",
-    "delete-arity"    : "-d flag requires two parameters",
-    "delete-type-1"   : "first argument to -d must be an integer",
-    "delete-type-2"   : "second argument to -d must be either 'end' or an integer",
-    "delete-type-3"   : "numerical arguments to -d must be non negative integers",
-    "delete-index-1"  : "first argument to -d is out of range",
-    "delete-index-2"  : "second argument to -d is out of range",
-    "delete-index-3"  : "first argument to -d is greater than second argument",
-    "insert-arity"    : "-i flag requires two parameters",
-    "insert-type-1"   : "second argument to -i must be either 'end' or an integer",
-    "insert-type-2"   : "numerical arguments to -i must be non-negative integers",
-    "indert-index"    : "second argument to -i is out of range",
-    "pattern-arity"   : "-p flag requires two parameters",
-    "replace-arity"   : "-r flag requires two parameters",
-    "subs-arity"      : "-s flag requires a parameter",
-    "subs-type"       : "argument for -s may be one of: sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du",
-    "verbosity-arity" : "-vX flag requires a parameter",
-    "verbosity-type"  : "argument to -vX flag requires an integer between 0 and 3",
-    "duplicate"       : "action will result in two or more identical file names!",
-    "tokenize-arity"  : "-t flag requires one parameter",
-    "too_many_tokens" : "a file has too many tokens",
-    "filemode-arity"  : "-m flag requires one parameter: [f | d | b]"
+    "file-arity": "-f flag requires a filename parameter",
+    "case-arity": "-c flag requires a parameter",
+    "case-type": "argument for -c may be one of: lc uc tc sc",
+    "extension-arity": "+e flag requires a parameter",
+    "delete-arity": "-d flag requires two parameters",
+    "delete-type-1": "first argument to -d must be an integer",
+    "delete-type-2": "second argument to -d must be either 'end' or an integer",
+    "delete-type-3": "numerical arguments to -d must be non negative integers",
+    "delete-index-1": "first argument to -d is out of range",
+    "delete-index-2": "second argument to -d is out of range",
+    "delete-index-3": "first argument to -d is greater than second argument",
+    "insert-arity": "-i flag requires two parameters",
+    "insert-type-1": "second argument to -i must be either 'end' or an integer",
+    "insert-type-2": "numerical arguments to -i must be non-negative integers",
+    "indert-index": "second argument to -i is out of range",
+    "pattern-arity": "-p flag requires two parameters",
+    "replace-arity": "-r flag requires two parameters",
+    "subs-arity": "-s flag requires a parameter",
+    "subs-type": "argument for -s may be one of: sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du",
+    "verbosity-arity": "-vX flag requires a parameter",
+    "verbosity-type": "argument to -vX flag requires an integer between 0 and 3",
+    "duplicate": "action will result in two or more identical file names!",
+    "tokenize-arity": "-t flag requires one parameter",
+    "too_many_tokens": "a file has too many tokens",
+    "filemode-arity": "-m flag requires one parameter: [f | d | b]"
 }
 
-VALID_FLAGS = frozenset(
-    [ "-c", "-C", "+C", "-d", "-D", "-e", "+e", "-f", "-h", "-i", "-m", "-n",
-      "-p", "-r", "-R", "-s", "-u", "-v", "-y"
+VALID_FLAGS = frozenset([
+    "-c", "-C", "+C", "-d", "-D", "-e", "+e", "-f", "-h", "-i", "-m", "-n",
+    "-p", "-r", "-R", "-s", "-u", "-v", "-y"
     ])
-VALID_SUBTITUTION_OPTIONS = frozenset(
-    [ "sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"
+VALID_SUBTITUTION_OPTIONS = frozenset([
+    "sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"
     ])
 VALID_CASE_OPTIONS = frozenset(["lc", "uc", "tc", "sc"])
-
-# lvl 0: silent running
-# lvl 1: default, show file name buffer before getting confirmation
-# lvl 2: verbose, show actions and file name buffer before getting confirmation
-# lvl 3: very verbose, show actions and file name buffer state after each action
 VERBOSITY_LEVEL = 1
+# 0: silent running
+# 1: default, show file name buffer before getting confirmation
+# 2: verbose, show actions and file name buffer before getting confirmation
+# 3: very verbose, show actions and file name buffer state after each action
 
-SPLIT_REGEX        = re.compile(r"[a-zA-Z0-9]+|[^a-zA-Z0-9]+")
-FIRST_CAP_REGEX    = re.compile(r"(.)([A-Z][a-z]+)")
-ALL_CAP_REGEX      = re.compile(r"([a-z0-9])([A-Z])")
+SPLIT_REGEX = re.compile(r"[a-zA-Z0-9]+|[^a-zA-Z0-9]+")
+FIRST_CAP_REGEX = re.compile(r"(.)([A-Z][a-z]+)")
+ALL_CAP_REGEX = re.compile(r"([a-z0-9])([A-Z])")
 ALPHANUMERIC_REGEX = re.compile(r"[a-zA-Z0-9]+")
 
 ACTION_HANDLERS = {}
-CASE_FUNS       = {}
+CASE_FUNS = {}
 SUBSTITUTE_FUNS = {}
 
 
-################################################################################
+###############################################################################
 # CLASSES
 
 
@@ -197,7 +199,7 @@ class File:
     def __init__(self, path, name, ext=""):
         self.path = path
         self.name = name
-        self.ext  = ext
+        self.ext = ext
 
     def full(self):
         if self.ext:
@@ -218,10 +220,10 @@ class Config:
         self.yes_mode = False
         self.file_mode = 'f'
         self.undo = False
-        self.directory=os.getcwd()
+        self.directory = os.getcwd()
 
 
-################################################################################
+###############################################################################
 # FILE AND BUFFER HANDLING
 
 
@@ -231,15 +233,13 @@ def escape_pattern(pattern):
 
 
 def get_file_listing(config):
-    directory = config.directory
     filelist = []
-
-    listaux = os.listdir(directory)
-    listaux.sort(key=str.lower)
+    sorted_items = sorted(os.listdir(config.directory), key=str.lower)
+    listdir = [config.directory + os.sep + item for item in sorted_items]
 
     if config.file_mode == 'f':
         # Get files
-        for elem in listaux:
+        for elem in list:
             abspath = os.path.abspath(elem)
             if not os.path.isdir(abspath):
                 path, name = os.path.split(abspath)
@@ -249,7 +249,7 @@ def get_file_listing(config):
 
     elif config.file_mode == 'd':
         # Get directories
-        for elem in listaux:
+        for elem in list:
             abspath = os.path.abspath(elem)
             if os.path.isdir(abspath):
                 path, name = os.path.split(abspath)
@@ -258,7 +258,7 @@ def get_file_listing(config):
 
     elif config.file_mode == 'b':
         # Get both
-        for elem in listaux:
+        for elem in list:
             abspath = os.path.abspath(elem)
             path, name = os.path.split(abspath)
             path += os.sep
@@ -294,7 +294,8 @@ def rename_files(fn_buffer):
     for k, v in fn_buffer.items():
         if (k != fn_buffer[k].full()) and os.path.exists(fn_buffer[k].full()):
             t = fn_buffer[k].name + fn_buffer[k].ext
-            sys.exit("error while renaming {} to {}! -> {} already exists!".format(k, t, t))
+            error_msg = "error while renaming {} to {}! -> {} already exists!"
+            sys.exit(error_msg.format(k, t, t))
     for k, v in sorted(fn_buffer.items()):
         rename_file(v.path + k, v.path + v.full())
 
@@ -324,7 +325,7 @@ def clean_fn_buffer(fn_buffer):
     return new_fn_buffer
 
 
-################################################################################
+###############################################################################
 # LIST AND STRING MANGLING
 
 
@@ -342,17 +343,18 @@ def split_alphanumeric(string):
 
 
 def join_camel_case(string):
-    return "".join( [ CASE_FUNS["sc"](x) for x in string.split("_") ] )
+    return "".join([CASE_FUNS["sc"](x) for x in string.split("_")])
 
-################################################################################
+
+###############################################################################
 # PARSING
 
 
 def parse_args(argv):
-    config  = Config()
+    config = Config()
     actions = []
-    l       = len(argv)
-    i       = 1
+    l = len(argv)
+    i = 1
 
     if l == 1:
         print(SHORT_USAGE)
@@ -360,7 +362,7 @@ def parse_args(argv):
 
     while (i < l):
         if argv[i] == "-c":
-            msg =  ERRMSGS["case-arity"]
+            msg = ERRMSGS["case-arity"]
             i, actions = parse_one(argv, i, actions, "case", msg)
             if not (actions[-1].arg1 in VALID_CASE_OPTIONS):
                 msg = ERRMSGS["case-type"]
@@ -465,7 +467,7 @@ def parse_args(argv):
             i += 1
 
         else:
-            usage()
+            print(SHORT_USAGE)
             msg = "unrecognized flag: {}".format(argv[i])
             sys.exit(msg)
     return config, actions
@@ -490,8 +492,8 @@ def parse_two(argv, i, actions, action_name, errmsg):
 
 
 def parse_extension(argv, i, actions):
-    l    = len(argv)
-    mode = argv[i][0] # will be either + or -
+    l = len(argv)
+    mode = argv[i][0]  # will be either + or -
     if i == l - 1:
         # this flag is the last flag
         action = Action("extension", mode)
@@ -506,13 +508,13 @@ def parse_extension(argv, i, actions):
             # the next argument is the value of the extension flag
             action = Action("extension", mode, argv[i+1])
             i += 2
-    if mode == "+" and action.arg2 == None:
+    if (mode == "+") and (action.arg2 is None):
         sys.exit(ERRMSGS["extension-arity"])
-    actions.append( action )
+    actions.append(action)
     return i, actions
 
 
-################################################################################
+###############################################################################
 # OUTPUT
 
 
@@ -566,7 +568,7 @@ def print_fn_buffer(fn_buffer):
     print()
 
 
-################################################################################
+###############################################################################
 # ACTION HANDLERS
 
 
@@ -667,7 +669,7 @@ def handle_verbosity(action, fn_buffer):
     return fn_buffer
 
 
-################################################################################
+###############################################################################
 # ACTION PROCESSORS
 
 
@@ -694,7 +696,7 @@ def process_delete(ini, end, name):
         sys.exit(ERRMSGS["delete-index-3"])
 
     textini = name[0:ini]
-    textend = name[end + 1 : len(name)]
+    textend = name[end+1:len(name)]
     newname = textini + textend
     return newname
 
@@ -704,22 +706,22 @@ def process_extension(mode, ext, name):
         pass
         # add an extension
         # if (ext and name):
-            # name += ('.' + ext)
+        #    name += ('.' + ext)
     if mode == "-":
         if ext and name:
             # change the extension to ext
             if "." in name:
-                aux  = name.split(".")[-1]
-                name = name[0 : len(name) - len(aux) - 1]
+                aux = name.split(".")[-1]
+                name = name[0:len(name) - len(aux) - 1]
                 name += ext
         else:
             # remove the extension
             if "." in name:
-                ext  = name.split(".")[-1]
-                name = name[0 : len(name) - len(ext) - 1]
-                ext  = ""
+                ext = name.split(".")[-1]
+                name = name[0:len(name) - len(ext) - 1]
+                ext = ""
             else:
-                ext  = ""
+                ext = ""
     return name, ext
 
 
@@ -730,32 +732,32 @@ def process_insert(name, text, pos):
     elif (pos > len(name)):
         sys.exit(ERRMSGS["insert-index-1"])
     else:
-        newname = name[0 : pos] + text + name[pos : len(name)]
+        newname = name[0:pos] + text + name[pos:len(name)]
     return newname
 
 
 def process_pattern_match(name, pattern_ini, pattern_end, count):
-    pattern   = pattern_ini
-    pattern   = pattern.replace(".","\.")
-    pattern   = pattern.replace("[","\[")
-    pattern   = pattern.replace("]","\]")
-    pattern   = pattern.replace("(","\(")
-    pattern   = pattern.replace(")","\)")
-    pattern   = pattern.replace("?","\?")
-    pattern   = pattern.replace("{#}", "([0-9]*)")
-    pattern   = pattern.replace("{L}", "([a-zA-Z]*)")
-    pattern   = pattern.replace("{C}", "([\S]*)")
-    pattern   = pattern.replace("{X}", "([\S\s]*)")
-    pattern   = pattern.replace("{@}", "(.*)")
+    pattern = pattern_ini
+    pattern = pattern.replace(".", "\.")
+    pattern = pattern.replace("[", "\[")
+    pattern = pattern.replace("]", "\]")
+    pattern = pattern.replace("(", "\(")
+    pattern = pattern.replace(")", "\)")
+    pattern = pattern.replace("?", "\?")
+    pattern = pattern.replace("{#}", "([0-9]*)")
+    pattern = pattern.replace("{L}", "([a-zA-Z]*)")
+    pattern = pattern.replace("{C}", "([\S]*)")
+    pattern = pattern.replace("{X}", "([\S\s]*)")
+    pattern = pattern.replace("{@}", "(.*)")
     repattern = re.compile(pattern)
-    newname   = pattern_end
+    newname = pattern_end
 
     try:
         search = repattern.search(name)
         if search:
             groups = search.groups()
             for i in range(len(groups)):
-                newname = newname.replace("{"+ str(i+1) +"}", groups[i])
+                newname = newname.replace("{" + str(i+1) + "}", groups[i])
         else:
             return None
     except Exception as e:
@@ -788,17 +790,17 @@ def process_pattern_match(name, pattern_ini, pattern_end, count):
     dir = os.path.abspath("./")
     dir = os.path.dirname(dir)
     dir = os.path.basename(dir)
-    newname = newname.replace("{dir}", dir)
+    n = newname.replace("{dir}", dir)
 
     # Some date replacements
-    newname = newname.replace("{date}",      time.strftime("%Y-%m-%d", time.localtime()))
-    newname = newname.replace("{year}",      time.strftime("%Y",       time.localtime()))
-    newname = newname.replace("{month}",     time.strftime("%m",       time.localtime()))
-    newname = newname.replace("{monthname}", time.strftime("%B",       time.localtime()))
-    newname = newname.replace("{monthsimp}", time.strftime("%b",       time.localtime()))
-    newname = newname.replace("{day}",       time.strftime("%d",       time.localtime()))
-    newname = newname.replace("{dayname}",   time.strftime("%A",       time.localtime()))
-    newname = newname.replace("{daysimp}",   time.strftime("%a",       time.localtime()))
+    n = n.replace("{date}",      time.strftime("%Y-%m-%d", time.localtime()))
+    n = n.replace("{year}",      time.strftime("%Y",       time.localtime()))
+    n = n.replace("{month}",     time.strftime("%m",       time.localtime()))
+    n = n.replace("{monthname}", time.strftime("%B",       time.localtime()))
+    n = n.replace("{monthsimp}", time.strftime("%b",       time.localtime()))
+    n = n.replace("{day}",       time.strftime("%d",       time.localtime()))
+    n = n.replace("{dayname}",   time.strftime("%A",       time.localtime()))
+    n = n.replace("{daysimp}",   time.strftime("%a",       time.localtime()))
 
     # Replace {rand} with random number between 0 and 100.
     # If {rand500} the number will be between 0 and 500
@@ -812,8 +814,7 @@ def process_pattern_match(name, pattern_ini, pattern_end, count):
                     "|{(rand)([0-9]*)(\-)([0-9]*)(\,)([0-9]*)}")
     try:
         cg = cr.search(newname).groups()
-        if (len(cg) == 16):
-
+        if len(cg) == 16:
             if (cg[0] == "rand"):
                 if (cg[1] == ""):
                     # {rand}
@@ -821,28 +822,49 @@ def process_pattern_match(name, pattern_ini, pattern_end, count):
                 else:
                     # {rand2}
                     rnd = random.randint(0, int(cg[1]))
-
-            elif (cg[2] == "rand") and (cg[4] == "-") and (cg[3] != "") and (cg[5] != ""):
+            elif rand_case_1(cg):
                 # {rand10-100}
                 rnd = random.randint(int(cg[3]), int(cg[5]))
-
-            elif (cg[6] == "rand") and (cg[8] == ",") and (cg[9] != ""):
+            elif rand_case_2(cg):
                 if (cg[7] == ""):
                     # {rand,2}
                     rnd = str(random.randint(0, 100)).zfill(int(cg[9]))
                 else:
                     # {rand10,2}
                     rnd = str(random.randint(0, int(cg[7]))).zfill(int(cg[9]))
-
-            elif (cg[10] == "rand") and (cg[12] == "-") and (cg[14] == ",") and (cg[11] != "") and (cg[13] != "") and (cg[15] != ""):
+            elif rand_case_3(cg):
                 # {rand2-10,3}
-                rnd = str(random.randint(int(cg[11]), int(cg[13]))).zfill(int(cg[15]))
-
+                s = str(random.randint(int(cg[11]), int(cg[13])))
+                rnd = s.zfill(int(cg[15]))
         newname = cr.sub(str(rnd), newname)
     except:
         pass
-
     return newname
+
+
+def rand_case_1(cg):
+    r = ((cg[2] == "rand") and
+         (cg[4] == "-") and
+         (cg[3] != "") and
+         (cg[5] != ""))
+    return r
+
+
+def rand_case_2(cg):
+    r = ((cg[6] == "rand") and
+         (cg[8] == ",") and
+         (cg[9] != ""))
+    return r
+
+
+def rand_case_3(cg):
+    r = ((cg[10] == "rand") and
+         (cg[12] == "-") and
+         (cg[14] == ",") and
+         (cg[11] != "") and
+         (cg[13] != "") and
+         (cg[15] != ""))
+    return r
 
 
 def process_replace(name, old, new):
@@ -858,19 +880,19 @@ def process_substitute(mode, name):
 
 
 def process_tokenize(mode, name):
-    token_refs = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    tokens     = split_alphanumeric(name)
+    refs = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    tokens = split_alphanumeric(name)
 
-    if len(token_refs) < len(tokens):
+    if len(refs) < len(tokens):
         sys.exit(ERRMSGS['too_many_tokens'])
 
-    i   = 0
+    i = 0
     t2i = {}
     i2t = {}
     for token in tokens:
-        i2t[token_refs[i]] = token
-        if not token in t2i:
-            t2i[token] = token_refs[i]
+        i2t[refs[i]] = token
+        if token not in t2i:
+            t2i[token] = refs[i]
         i += 1
 
     print(name)
@@ -880,10 +902,10 @@ def process_tokenize(mode, name):
     sys.stdout.flush()
 
     pattern = sys.stdin.readline()
-    result  = pattern[:-1]
+    result = pattern[:-1]
     try:
         if mode == "1":
-            result = " ".join([ i2t[i] for i in result.strip().split(' ')])
+            result = " ".join([i2t[i] for i in result.strip().split(' ')])
         elif mode == "2":
             for i, t in i2t.items():
                 result = result.replace("{" + i + "}", t)
@@ -893,7 +915,7 @@ def process_tokenize(mode, name):
             for i, t in i2t.items():
                 result = result.replace("{" + i + "}", t)
         else:
-            sys.exit("unknown mode: " ++ mode)
+            sys.exit("unknown mode: " + mode)
     except Exception as e:
         sys.exit("unknown error: ", e)
     return result
@@ -905,46 +927,46 @@ def process_verbosity(lvl):
     VERBOSITY_LEVEL = lvl
 
 
-################################################################################
+###############################################################################
 # GLOBALS
 
 
 ACTION_HANDLERS = {
-    "camelcase"  : handle_camel_case,
-    "case"       : handle_case,
-    "delete"     : handle_delete,
-    "extension"  : handle_extension,
-    "file"       : handle_file,
-    "insert"     : handle_insert,
-    "pattern"    : handle_pattern_match,
-    "replace"    : handle_replace,
-    "sanitize"   : handle_sanitize,
-    "substitute" : handle_substitute,
-    "tokenize"   : handle_tokenize,
-    "verbosity"  : handle_verbosity
+    "camelcase": handle_camel_case,
+    "case": handle_case,
+    "delete": handle_delete,
+    "extension": handle_extension,
+    "file": handle_file,
+    "insert": handle_insert,
+    "pattern": handle_pattern_match,
+    "replace": handle_replace,
+    "sanitize": handle_sanitize,
+    "substitute": handle_substitute,
+    "tokenize": handle_tokenize,
+    "verbosity": handle_verbosity
 }
 CASE_FUNS = {
-    "uc" : lambda x: x.upper(),
-    "lc" : lambda x: x.lower(),
-    "sc" : lambda x: x.capitalize(),
-    "tc" : lambda x: "".join([y.capitalize() for y in split(x)])
+    "uc": lambda x: x.upper(),
+    "lc": lambda x: x.lower(),
+    "sc": lambda x: x.capitalize(),
+    "tc": lambda x: "".join([y.capitalize() for y in split(x)])
 }
 SUBSTITUTE_FUNS = {
-    "sd" : lambda x: x.replace(" ", "-"),
-    "sp" : lambda x: x.replace(" ", "."),
-    "su" : lambda x: x.replace(" ", "_"),
-    "ud" : lambda x: x.replace("_", "-"),
-    "up" : lambda x: x.replace("_", "."),
-    "us" : lambda x: x.replace("_", " "),
-    "pd" : lambda x: x.replace(".", "-"),
-    "ps" : lambda x: x.replace(".", " "),
-    "pu" : lambda x: x.replace(".", "_"),
-    "dp" : lambda x: x.replace("-", "."),
-    "ds" : lambda x: x.replace("-", " "),
-    "du" : lambda x: x.replace("-", "_")
+    "sd": lambda x: x.replace(" ", "-"),
+    "sp": lambda x: x.replace(" ", "."),
+    "su": lambda x: x.replace(" ", "_"),
+    "ud": lambda x: x.replace("_", "-"),
+    "up": lambda x: x.replace("_", "."),
+    "us": lambda x: x.replace("_", " "),
+    "pd": lambda x: x.replace(".", "-"),
+    "ps": lambda x: x.replace(".", " "),
+    "pu": lambda x: x.replace(".", "_"),
+    "dp": lambda x: x.replace("-", "."),
+    "ds": lambda x: x.replace("-", " "),
+    "du": lambda x: x.replace("-", "_")
 }
 
-################################################################################
+###############################################################################
 # MAIN
 
 
@@ -998,7 +1020,6 @@ def main():
         if confirmed:
             rename_files(fn_buffer)
 
-################################################################################
+###############################################################################
 if (__name__ == "__main__"):
     main()
-
