@@ -37,6 +37,7 @@ Usage:
     -D DIR
     -R
     -M [f | d | b]
+    -g GLOB
     -p SOURCE_PATTERN DESTINATION_PATTERN
         {#}                      {numX+Y}                         {monthname}
         {L}                      {randX-Y,Z}                      {monthsimp}
@@ -81,6 +82,8 @@ Usage:
         f: operate only on files (default)
         d: operate only on directories
         b: operate both on directories and files
+    -g GLOB
+        Filter files using a glob expression.
     -p SOURCE_PATTERN DESTINATION_PATTERN
         Pattern match.
         {#}         Numbers
@@ -164,18 +167,13 @@ ERRMSGS = {
 }
 
 VALID_FLAGS = frozenset([
-    "-c", "-C", "+C", "-d", "-D", "-e", "+e", "-F", "-h", "-i", "-M", "-n",
-    "-p", "-r", "-R", "-s", "-u", "-v", "-y"
+    "-c", "-C", "+C", "-d", "-D", "-e", "+e", "-F", "-g", "-h", "-i", "-M",
+    "-n", "-p", "-r", "-R", "-s", "-u", "-v", "-y"
     ])
 VALID_SUBTITUTION_OPTIONS = frozenset([
     "sd", "sp", "su", "ud", "up", "us", "pd", "ps", "pu", "dp", "ds", "du"
     ])
 VALID_CASE_OPTIONS = frozenset(["lc", "uc", "tc", "sc"])
-VERBOSITY_LEVEL = 1
-# 0: silent running
-# 1: default, show file name buffer before getting confirmation
-# 2: verbose, show actions and file name buffer before getting confirmation
-# 3: very verbose, show actions and file name buffer state after each action
 
 SPLIT_REGEX = re.compile(r"[a-zA-Z0-9]+|[^a-zA-Z0-9]+")
 FIRST_CAP_REGEX = re.compile(r"(.)([A-Z][a-z]+)")
@@ -194,6 +192,11 @@ SUBSTITUTE_FUNS = {}
 class Config:
 
     def __init__(self):
+        # 0: silent running
+        # 1: default, show file name buffer before confirmation
+        # 2: verbose, show actions and file name buffer before confirmation
+        # 3: very verbose, show file name buffer state after each action
+        self.verbosity = 1
         self.file_mode = 'f'
         self.yes_mode = False
         self.undo = False
@@ -430,6 +433,9 @@ def parse_args(argv):
             msg = ERRMSGS["file-arity"]
             i, actions = parse_one(argv, i, actions, "file", msg)
 
+        elif argv[i] == "-g":
+            pass  # TODO
+
         elif argv[i] == "-i":
             msg = ERRMSGS["insert-arity"]
             i, actions = parse_two(argv, i, actions, "insert", msg)
@@ -613,8 +619,8 @@ def print_fn_buffer(config, fn_buffer):
 def handle_actions(config, actions):
     fn_buffer = init_fn_buffer(config)
     for action in actions:
-        fn_buffer = ACTION_HANDLERS[action.name](action, fn_buffer)
-        if (VERBOSITY_LEVEL > 2) and (action.name != "verbosity"):
+        fn_buffer = ACTION_HANDLERS[action.name](config, action, fn_buffer)
+        if (config.verbosity > 2) and (action.name != "verbosity"):
             print_sep()
             print_action(action)
             print_fn_buffer(config, fn_buffer)
@@ -622,19 +628,19 @@ def handle_actions(config, actions):
     return clean_fn_buffer(fn_buffer)
 
 
-def handle_camel_case(action, fn_buffer):
+def handle_camel_case(config, action, fn_buffer):
     for k, v, in fn_buffer.items():
         fn_buffer[k].set_name(process_camel_case(v.name, action.arg1))
     return fn_buffer
 
 
-def handle_case(action, fn_buffer):
+def handle_case(config, action, fn_buffer):
     for k, v in fn_buffer.items():
         fn_buffer[k].set_name(process_case(action.arg1, v.name))
     return fn_buffer
 
 
-def handle_file(action, fn_buffer):
+def handle_file(config, action, fn_buffer):
     new_fn_buffer = fn_buffer.copy()
     for k in fn_buffer.keys():
         if (k != action.arg1):
@@ -642,13 +648,13 @@ def handle_file(action, fn_buffer):
     return new_fn_buffer
 
 
-def handle_delete(action, fn_buffer):
+def handle_delete(config, action, fn_buffer):
     for k, v in fn_buffer.items():
         fn_buffer[k].set_name(process_delete(action.arg1, action.arg2, v.name))
     return fn_buffer
 
 
-def handle_extension(action, fn_buffer):
+def handle_extension(config, action, fn_buffer):
     for k, v in fn_buffer.items():
         name, ext = process_extension(action.arg1, action.arg2, v.name)
         fn_buffer[k].set_name(name)
@@ -656,14 +662,14 @@ def handle_extension(action, fn_buffer):
     return fn_buffer
 
 
-def handle_insert(action, fn_buffer):
+def handle_insert(config, action, fn_buffer):
     for k, v in fn_buffer.items():
         n = process_insert(fn_buffer[k].name, action.arg1, action.arg2)
         fn_buffer[k].set_name(n)
     return fn_buffer
 
 
-def handle_pattern_match(action, fn_buffer):
+def handle_pattern_match(config, action, fn_buffer):
     count = 0
     new_fn_buffer = fn_buffer.copy()
     for k, v in fn_buffer.items():
@@ -676,34 +682,34 @@ def handle_pattern_match(action, fn_buffer):
     return new_fn_buffer
 
 
-def handle_replace(action, fn_buffer):
+def handle_replace(config, action, fn_buffer):
     for k, v in fn_buffer.items():
         n = process_replace(v.name, action.arg1, action.arg2)
         fn_buffer[k].set_name(n)
     return fn_buffer
 
 
-def handle_sanitize(action, fn_buffer):
+def handle_sanitize(config, action, fn_buffer):
     for k, v in fn_buffer.items():
         fn_buffer[k].set_name(process_sanitize(v.name))
     return fn_buffer
 
 
-def handle_substitute(action, fn_buffer):
+def handle_substitute(config, action, fn_buffer):
     for k, v in fn_buffer.items():
         n = process_substitute(action.arg1, v.name)
         fn_buffer[k].set_name(n)
     return fn_buffer
 
 
-def handle_tokenize(action, fn_buffer):
+def handle_tokenize(config, action, fn_buffer):
     for k, v in fn_buffer.items():
         fn_buffer[k].set_name(process_tokenize(action.arg1, v.name))
     return fn_buffer
 
 
-def handle_verbosity(action, fn_buffer):
-    process_verbosity(action.arg1)
+def handle_verbosity(config, action, fn_buffer):
+    process_verbosity(config, action.arg1)
     return fn_buffer
 
 
@@ -959,10 +965,8 @@ def process_tokenize(mode, name):
     return result
 
 
-def process_verbosity(lvl):
-    global VERBOSITY_LEVEL
-    print("setting verbosity level to {}".format(lvl))
-    VERBOSITY_LEVEL = lvl
+def process_verbosity(config, lvl):
+    config.verbosity = lvl
 
 
 ###############################################################################
@@ -1049,7 +1053,7 @@ def main():
 
         fn_buffer = handle_actions(config, actions)
 
-        if VERBOSITY_LEVEL in [1, 2]:
+        if 1 <= config.verbosity <= 2:
             print_fn_buffer(config, fn_buffer)
         confirmed = obtain_confirmation(config, fn_buffer)
 

@@ -314,6 +314,9 @@ Operate only on files matching the glob pattern.
 * Add some examples in motion.
 
 <!--
+TODO:
+- document the code a bit
+
 IDEAS:
 - make tokenizer mode be able to specify the token separator
 - add flag to specify working directory, default is current working directory.
