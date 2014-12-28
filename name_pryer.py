@@ -28,7 +28,34 @@ import functools
 ################################################################################
 # GLOBALS
 
-USAGE = """
+SHORT_USAGE = """
+Usage:
+    -h
+    -v [0 | 1 | 2 | 3]
+    -m [f | d | b]
+    -y
+    -f FILENAME
+    -p SOURCE_PATTERN DESTINATION_PATTERN
+        {#}                      {numX+Y}                         {monthname}
+        {L}                      {randX-Y,Z}                      {monthsimp}
+        {C}                      {date}                           {day}
+        {X}                      {year}                           {dayname}
+        {@}                      {month}                          {daysimp}
+    -c [lc | uc | tc | sc]
+    -C
+    +C
+    -d X (Y | end)
+    +e EXT
+    -e [EXT]
+    -i X (Y | end)
+    -n
+    -r X Y
+    -s [sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du ]
+        s: spaces         d: dashes         u: underscores         p: periods
+    -t [1 | 2 | 3]
+"""
+
+LONG_USAGE = """
 Usage:
     -h
         Help, print this message
@@ -151,7 +178,7 @@ ALL_CAP_REGEX      = re.compile(r"([a-z0-9])([A-Z])")
 ALPHANUMERIC_REGEX = re.compile(r"[a-zA-Z0-9]+")
 
 ACTION_HANDLERS = {}
-CASE_FUNS = {}
+CASE_FUNS       = {}
 SUBSTITUTE_FUNS = {}
 
 
@@ -192,6 +219,7 @@ class Config:
         self.file_mode = 'f'
         self.undo = False
         self.directory=os.getcwd()
+
 
 ################################################################################
 # FILE AND BUFFER HANDLING
@@ -321,10 +349,15 @@ def join_camel_case(string):
 
 
 def parse_args(argv):
-    config = Config()
+    config  = Config()
     actions = []
-    l = len(argv)
-    i = 1
+    l       = len(argv)
+    i       = 1
+
+    if l == 1:
+        print(SHORT_USAGE)
+        sys.exit()
+
     while (i < l):
         if argv[i] == "-c":
             msg =  ERRMSGS["case-arity"]
@@ -424,7 +457,7 @@ def parse_args(argv):
                 sys.exit(ERRMSGS["verbosity-type"])
 
         elif argv[i] == "-h":
-            usage()
+            print(LONG_USAGE)
             sys.exit()
 
         elif argv[i] == "-y":
@@ -702,17 +735,6 @@ def process_insert(name, text, pos):
 
 
 def process_pattern_match(name, pattern_ini, pattern_end, count):
-    """
-    This method parses the patterns given by the user.
-    Possible patterns are:
-
-    {#} Numbers
-    {L} Letters
-    {C} Characters (Numbers & letters, not spaces)
-    {X} Numbers, letters, and spaces
-    {@} Trash
-    """
-
     pattern   = pattern_ini
     pattern   = pattern.replace(".","\.")
     pattern   = pattern.replace("[","\[")
@@ -951,18 +973,18 @@ def obtain_confirmation(config, filename_fn_buffer):
             sys.exit("unrecognized input")
 
 
-def usage():
-    print(USAGE)
+def verbosity_set(actions):
+    f = lambda x, y: x or y
+    l = [(a.name == "verbosity") and (a.arg1 > 1) for a in actions]
+    r = functools.reduce(f, l, False)
+    return r
 
 
 def main():
     config, actions = parse_args(sys.argv)
 
     if len(actions) > 0:
-        f = lambda x, y: x or y
-        l = [(a.name == "verbosity") and (a.arg1 > 1) for a in actions]
-        r = functools.reduce(f, l, False)
-        if r:
+        if verbosity_set(actions):
             print_actions(actions)
 
         fn_buffer = handle_actions(config, actions)

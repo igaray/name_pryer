@@ -319,15 +319,11 @@ Operate only on files matching the glob pattern.
 * Add some examples in motion.
 
 <!--
-TODO:
-- replace global variables by a configuration object that is passed around
-
 IDEAS:
 - make tokenizer mode be able to specify the token separator
 - add flag to specify working directory, default is current working directory.
 - add flag to specify recursive operation.
 - add flag to specify a filter by glob pattern , e.g. ``-g "*.mp3"``
-- modify camelcase flag to allow converting to/from camelcase
 - add flag to remove one or all matches of a string
 - find a way to express matches such as "two fields of alfanumeric characters"
 - add name and word dictinaries to know what is a name, what is a preposition, noun, etc
