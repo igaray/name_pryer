@@ -139,31 +139,33 @@ Usage:
 """
 
 ERRMSGS = {
-    "file-arity": "-f flag requires a filename parameter",
-    "case-arity": "-c flag requires a parameter",
-    "case-type": "argument for -c may be one of: lc uc tc sc",
-    "extension-arity": "+e flag requires a parameter",
-    "delete-arity": "-d flag requires two parameters",
-    "delete-type-1": "first argument to -d must be an integer",
-    "delete-type-2": "second argument to -d must be either 'end' or an integer",
-    "delete-type-3": "numerical arguments to -d must be non negative integers",
-    "delete-index-1": "first argument to -d is out of range",
-    "delete-index-2": "second argument to -d is out of range",
-    "delete-index-3": "first argument to -d is greater than second argument",
-    "insert-arity": "-i flag requires two parameters",
-    "insert-type-1": "second argument to -i must be either 'end' or an integer",
-    "insert-type-2": "numerical arguments to -i must be non-negative integers",
-    "indert-index": "second argument to -i is out of range",
-    "pattern-arity": "-p flag requires two parameters",
-    "replace-arity": "-r flag requires two parameters",
-    "subs-arity": "-s flag requires a parameter",
-    "subs-type": "argument for -s may be one of: sd | sp | su | ud | up | us | pd | ps | pu | dp | ds | du",
-    "verbosity-arity": "-vX flag requires a parameter",
-    "verbosity-type": "argument to -vX flag requires an integer between 0 and 3",
-    "duplicate": "action will result in two or more identical file names!",
-    "tokenize-arity": "-t flag requires one parameter",
-    "too_many_tokens": "a file has too many tokens",
-    "filemode-arity": "-m flag requires one parameter: [f | d | b]"
+    "file-arity"      : "-f takes a filename parameter",
+    "case-arity"      : "-c takes one parameter",
+    "case-type"       : "valid parameters for -c: lc uc tc sc",
+    "extension-arity" : "+e requires one parameter",
+    "delete-arity"    : "-d requires two parameters",
+    "delete-type-1"   : "1st parameter to -d must be an integer",
+    "delete-type-2"   : "2nd parameter to -d must be either 'end' or integer",
+    "delete-type-3"   : "integer parameters to -d must be non negative",
+    "delete-index-1"  : "1st parameter to -d is out of range",
+    "delete-index-2"  : "2nd parameter to -d is out of range",
+    "delete-index-3"  : "1st parameter to -d is greater than second argument",
+    "insert-arity"    : "-i requires two parameters",
+    "insert-type-1"   : "2nd parameter to -i must be either 'end' or an integer",
+    "insert-type-2"   : "integer parameters to -i must be non-negative",
+    "indert-index"    : "2nd parameter to -i is out of range",
+    "pattern-arity"   : "-p requires two parameters",
+    "replace-arity"   : "-r requires two parameters",
+    "subs-arity"      : "-s requires a parameter",
+    "subs-type"       : "valid parameters for -s: sd sp su ud up us pd ps pu dp ds du",
+    "verbosity-arity" : "-vX requires a parameter",
+    "verbosity-type"  : "valid parameters for -v: 0 1 2 3",
+    "duplicate"       : "action will result in two or more identical file names!",
+    "tokenize-arity"  : "-t requires one parameter",
+    "too_many_tokens" : "a file has too many tokens",
+    "filemode-arity"  : "-m requires one parameter",
+    "directory-arity" : "-D requires one parameter",
+    "glob-arity"      : "-g requires one parameter"
 }
 
 VALID_FLAGS = frozenset([
@@ -175,13 +177,13 @@ VALID_SUBTITUTION_OPTIONS = frozenset([
     ])
 VALID_CASE_OPTIONS = frozenset(["lc", "uc", "tc", "sc"])
 
-SPLIT_REGEX = re.compile(r"[a-zA-Z0-9]+|[^a-zA-Z0-9]+")
-FIRST_CAP_REGEX = re.compile(r"(.)([A-Z][a-z]+)")
-ALL_CAP_REGEX = re.compile(r"([a-z0-9])([A-Z])")
+SPLIT_REGEX        = re.compile(r"[a-zA-Z0-9]+|[^a-zA-Z0-9]+")
+FIRST_CAP_REGEX    = re.compile(r"(.)([A-Z][a-z]+)")
+ALL_CAP_REGEX      = re.compile(r"([a-z0-9])([A-Z])")
 ALPHANUMERIC_REGEX = re.compile(r"[a-zA-Z0-9]+")
 
 ACTION_HANDLERS = {}
-CASE_FUNS = {}
+CASE_FUNS       = {}
 SUBSTITUTE_FUNS = {}
 
 
@@ -192,19 +194,20 @@ SUBSTITUTE_FUNS = {}
 class Config:
 
     def __init__(self):
+        rows, cols = os.popen('stty size', 'r').read().split()
+        self.rows  = int(rows)
+        self.cols  = int(cols)
         # 0: silent running
         # 1: default, show file name buffer before confirmation
         # 2: verbose, show actions and file name buffer before confirmation
         # 3: very verbose, show file name buffer state after each action
         self.verbosity = 1
         self.file_mode = 'f'
-        self.yes_mode = False
-        self.undo = False
+        self.yes_mode  = False
+        self.undo      = False
         self.recursive = False
         self.directory = os.getcwd()
-        rows, cols = os.popen('stty size', 'r').read().split()
-        self.rows = int(rows)
-        self.cols = int(cols)
+        self.pattern   = None
 
 
 class Action:
@@ -218,7 +221,7 @@ class File:
     def __init__(self, path, name, ext=""):
         self.path = path
         self.name = name
-        self.ext = ext
+        self.ext  = ext
 
     def full(self):
         if self.ext:
@@ -249,18 +252,25 @@ def escape_pattern(pattern):
 
 
 def get_file_listing(config):
+    cwd    = config.directory
     result = []
+    items  = []
 
-    cwd = config.directory
     if config.recursive:
-        items = []
-        for root, subfolders, files in os.walk(cwd):
-            for item in subfolders:
-                items.append(os.path.join(root, item))
-            for item in files:
-                items.append(os.path.join(root, item))
+        if config.pattern:
+            for root, subfolders, files in os.walk(cwd):
+                items += glob.glob(os.path.join(root, config.pattern))
+        else:
+            for root, subfolders, files in os.walk(cwd):
+                for item in subfolders:
+                    items.append(os.path.join(root, item))
+                for item in files:
+                    items.append(os.path.join(root, item))
     else:
-        items = os.listdir(config.directory)
+        if config.pattern:
+            items = glob.glob(os.path.join(config.directory, config.pattern))
+        else:
+            items = os.listdir(config.directory)
         items = [os.path.join(config.directory, item) for item in items]
 
     items.sort(key=str.lower)
@@ -382,10 +392,10 @@ def join_camel_case(string):
 
 
 def parse_args(argv):
-    config = Config()
+    config  = Config()
     actions = []
-    l = len(argv)
-    i = 1
+    l       = len(argv)
+    i       = 1
 
     if l == 1:
         print(SHORT_USAGE)
@@ -423,7 +433,10 @@ def parse_args(argv):
                     sys.exit(ERRMSGS["delete-type-3"])
 
         elif argv[i] == '-D':
-            config.directory = argv[i+1]
+            if i+1 < l:
+                config.directory = argv[i+1]
+            else:
+                sys.exit(ERRMSGS["directory-arity"])
             i += 2
 
         elif argv[i] in ["-e", "+e"]:
@@ -434,7 +447,11 @@ def parse_args(argv):
             i, actions = parse_one(argv, i, actions, "file", msg)
 
         elif argv[i] == "-g":
-            pass  # TODO
+            if i+1 < l:
+                config.pattern = argv[i+1]
+            else:
+                sys.exit(ERRMSGS["glob-arity"])
+            i += 2
 
         elif argv[i] == "-i":
             msg = ERRMSGS["insert-arity"]
@@ -755,15 +772,15 @@ def process_extension(mode, ext, name):
         if ext and name:
             # change the extension to ext
             if "." in name:
-                aux = name.split(".")[-1]
+                aux  = name.split(".")[-1]
                 name = name[0:len(name) - len(aux) - 1]
                 name += ext
         else:
             # remove the extension
             if "." in name:
-                ext = name.split(".")[-1]
+                ext  = name.split(".")[-1]
                 name = name[0:len(name) - len(ext) - 1]
-                ext = ""
+                ext  = ""
             else:
                 ext = ""
     return name, ext
@@ -781,20 +798,20 @@ def process_insert(name, text, pos):
 
 
 def process_pattern_match(name, pattern_ini, pattern_end, count):
-    pattern = pattern_ini
-    pattern = pattern.replace(".", "\.")
-    pattern = pattern.replace("[", "\[")
-    pattern = pattern.replace("]", "\]")
-    pattern = pattern.replace("(", "\(")
-    pattern = pattern.replace(")", "\)")
-    pattern = pattern.replace("?", "\?")
-    pattern = pattern.replace("{#}", "([0-9]*)")
-    pattern = pattern.replace("{L}", "([a-zA-Z]*)")
-    pattern = pattern.replace("{C}", "([\S]*)")
-    pattern = pattern.replace("{X}", "([\S\s]*)")
-    pattern = pattern.replace("{@}", "(.*)")
+    pattern   = pattern_ini
+    pattern   = pattern.replace(".", "\.")
+    pattern   = pattern.replace("[", "\[")
+    pattern   = pattern.replace("]", "\]")
+    pattern   = pattern.replace("(", "\(")
+    pattern   = pattern.replace(")", "\)")
+    pattern   = pattern.replace("?", "\?")
+    pattern   = pattern.replace("{#}", "([0-9]*)")
+    pattern   = pattern.replace("{L}", "([a-zA-Z]*)")
+    pattern   = pattern.replace("{C}", "([\S]*)")
+    pattern   = pattern.replace("{X}", "([\S\s]*)")
+    pattern   = pattern.replace("{@}", "(.*)")
     repattern = re.compile(pattern)
-    newname = pattern_end
+    newname   = pattern_end
 
     try:
         search = repattern.search(name)
@@ -974,18 +991,18 @@ def process_verbosity(config, lvl):
 
 
 ACTION_HANDLERS = {
-    "camelcase": handle_camel_case,
-    "case": handle_case,
-    "delete": handle_delete,
-    "extension": handle_extension,
-    "file": handle_file,
-    "insert": handle_insert,
-    "pattern": handle_pattern_match,
-    "replace": handle_replace,
-    "sanitize": handle_sanitize,
-    "substitute": handle_substitute,
-    "tokenize": handle_tokenize,
-    "verbosity": handle_verbosity
+    "camelcase"  : handle_camel_case,
+    "case"       : handle_case,
+    "delete"     : handle_delete,
+    "extension"  : handle_extension,
+    "file"       : handle_file,
+    "insert"     : handle_insert,
+    "pattern"    : handle_pattern_match,
+    "replace"    : handle_replace,
+    "sanitize"   : handle_sanitize,
+    "substitute" : handle_substitute,
+    "tokenize"   : handle_tokenize,
+    "verbosity"  : handle_verbosity
 }
 CASE_FUNS = {
     "uc": lambda x: x.upper(),

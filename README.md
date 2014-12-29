@@ -109,6 +109,11 @@ Set working directory. Default is current directory.
 Recurse directories, may be used in combination with `-m` and `-D`.
 
 ---
+``-g GLOB``
+
+Operate only on files matching the glob pattern, e.g. `-g "*.mp3"`.
+
+---
 ``-p SOURCE_PATTERN DESTINATION_PATTERN``
 
 The pattern matching filter makes regular expressions usable.
@@ -303,15 +308,8 @@ y
 ### TODO
 
 ---
-* Add flag to specify a filter by glob pattern , e.g. ``-g "*.mp3"``
-
-``-g GLOB``
-
-Operate only on files matching the glob pattern.
-
----
 * Make pip friendly.
-* Add some examples in motion.
+* Add some examples.
 
 <!--
 TODO:
@@ -319,11 +317,7 @@ TODO:
 
 IDEAS:
 - make tokenizer mode be able to specify the token separator
-- add flag to specify working directory, default is current working directory.
-- add flag to specify recursive operation.
-- add flag to specify a filter by glob pattern , e.g. ``-g "*.mp3"``
 - add flag to remove one or all matches of a string
-- find a way to express matches such as "two fields of alfanumeric characters"
 - add name and word dictinaries to know what is a name, what is a preposition, noun, etc
 - make -c tc not uppercase words like 'of', 'and', 'the' except at the beginning
 - add a small expert system which knows how I like my files named and does that automatically
