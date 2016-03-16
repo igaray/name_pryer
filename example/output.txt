@@ -1,0 +1,15 @@
+01 - (Underworld,FatboySlim) born_slippy_(nuxx),right_here_r.mp3 => 01 Underworld, Fatboy Slim - Born Slippy (Nuxx),Right Here R.mp3
+02 - (KidCreme) austin's_groove.mp3                              => 02 Kid Creme - Austin'S Groove.mp3
+03 - (Scanty) southern_thing.mp3                                 => 03 Scanty - Southern Thing.mp3
+04 - (MinimalFunk) the_groovy_thang.mp3                          => 04 Minimal Funk - The Groovy Thang.mp3
+05 - (Santos) pray.mp3                                           => 05 Santos - Pray.mp3
+06 - (TheClumps) the_talk.mp3                                    => 06 The Clumps - The Talk.mp3
+07 - (BasementJaxx) where's_your_head_at.mp3                     => 07 Basement Jaxx - Where'S Your Head At.mp3
+08 - (JarkProngo) rocket_bass.mp3                                => 08 Jark Prongo - Rocket Bass.mp3
+09 - (LoveTattoo) drop_some_drums_(original_version).mp3         => 09 Love Tattoo - Drop Some Drums (Original Version).mp3
+10 - (BlackAndWhiteBrothers) put_your_hands_up.mp3               => 10 Black And White Brothers - Put Your Hands Up.mp3
+11 - (Santos) 3-2-1_fire!.mp3                                    => 11 Santos - 3-2-1 Fire!.mp3
+12 - (FatboySlim) star_69.mp3                                    => 12 Fatboy Slim - Star 69.mp3
+13 - (RavenMaize) the_real_life_(fatboy_slim_mix).mp3            => 13 Raven Maize - The Real Life (Fatboy Slim Mix).mp3
+14 - (FatboySlim,Leftfield,RolandClark) sunset_(bird_of_prey.mp3 => 14 Fatboy Slim, Leftfield, Roland Clark - Sunset (Bird Of Prey.mp3
+

@@ -33,6 +33,7 @@ Usage:
     -h
     -v [0 | 1 | 2 | 3]
     -y
+    -u
     -F FILENAME
     -D DIR
     -R
@@ -72,6 +73,8 @@ Usage:
         to raise or lower the verbosity during operation.
     -y
         Yes mode, do not prompt for confirmation.
+    -u
+        Creates an undo script.
     -F FILENAME
         Run on file FILENAME
     -D DIR
@@ -691,7 +694,7 @@ def handle_pattern_match(config, action, fn_buffer):
     new_fn_buffer = fn_buffer.copy()
     for k, v in fn_buffer.items():
         n = process_pattern_match(v.name, action.arg1, action.arg2, count)
-        if (n):
+        if n:
             new_fn_buffer[k].set_name(n)
         else:
             del new_fn_buffer[k]
@@ -812,7 +815,6 @@ def process_pattern_match(name, pattern_ini, pattern_end, count):
     pattern   = pattern.replace("{@}", "(.*)")
     repattern = re.compile(pattern)
     newname   = pattern_end
-
     try:
         search = repattern.search(name)
         if search:
@@ -847,13 +849,8 @@ def process_pattern_match(name, pattern_ini, pattern_end, count):
     except:
         pass
 
-    # Replace {dir} with directory name
-    dir = os.path.abspath("./")
-    dir = os.path.dirname(dir)
-    dir = os.path.basename(dir)
-    n = newname.replace("{dir}", dir)
-
     # Some date replacements
+    n = newname
     n = n.replace("{date}",      time.strftime("%Y-%m-%d", time.localtime()))
     n = n.replace("{year}",      time.strftime("%Y",       time.localtime()))
     n = n.replace("{month}",     time.strftime("%m",       time.localtime()))
@@ -862,11 +859,12 @@ def process_pattern_match(name, pattern_ini, pattern_end, count):
     n = n.replace("{day}",       time.strftime("%d",       time.localtime()))
     n = n.replace("{dayname}",   time.strftime("%A",       time.localtime()))
     n = n.replace("{daysimp}",   time.strftime("%a",       time.localtime()))
+    newname = n
 
     # Replace {rand} with random number between 0 and 100.
     # If {rand500} the number will be between 0 and 500
     # If {rand10-20} the number will be between 10 and 20
-    # If you add ,5 the number will be padded with 5 digits
+    # If you add ,[ 5 the number will be padded with 5 digits
     # ie. {rand20,5} will be a number between 0 and 20 of 5 digits (00012)
     rnd = ""
     cr = re.compile("{(rand)([0-9]*)}"
