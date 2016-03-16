@@ -380,7 +380,25 @@ If you wish to capitalize the extension, use the ``-e`` flag.
 
 * Examples
 
-TODO
+```bash
+$ ls
+folder  eighth_ninth_tenth  fifth_sixth_seventh  first_second_third_fourth
+
+$ np -c uc
+eighth_ninth_tenth        => EIGHTH_NINTH_TENTH
+fifth_sixth_seventh       => FIFTH_SIXTH_SEVENTH
+first_second_third_fourth => FIRST_SECOND_THIRD_FOURTH
+
+$ np -c tc
+eighth_ninth_tenth        => Eighth_Ninth_Tenth
+fifth_sixth_seventh       => Fifth_Sixth_Seventh
+first_second_third_fourth => First_Second_Third_Fourth
+
+$ np -c sc
+eighth_ninth_tenth        => Eighth_ninth_tenth
+fifth_sixth_seventh       => Fifth_sixth_seventh
+first_second_third_fourth => First_second_third_fourth
+```
 
 ---
 ``-d X [Y | end]``
@@ -393,7 +411,20 @@ The end is just before the last period.
 
 * Examples
 
-TODO
+```bash
+$ ls
+folder  eighth_ninth_tenth  fifth_sixth_seventh  first_second_third_fourth
+
+$ np -d 0 4
+eighth_ninth_tenth        => h_ninth_tenth
+fifth_sixth_seventh       => _sixth_seventh
+first_second_third_fourth => _second_third_fourth
+
+$ np -d 4 end
+eighth_ninth_tenth        => eigh
+fifth_sixth_seventh       => fift
+first_second_third_fourth => firs
+```
 
 ---
 ``-i X [Y | end]``
@@ -406,7 +437,25 @@ The end is just before the last period.
 
 * Examples
 
-TODO
+```bash
+$ ls
+folder  eighth_ninth_tenth  fifth_sixth_seventh  first_second_third_fourth
+
+$ np -i xxx_ 0
+eighth_ninth_tenth        => xxx_eighth_ninth_tenth
+fifth_sixth_seventh       => xxx_fifth_sixth_seventh
+first_second_third_fourth => xxx_first_second_third_fourth
+
+$ np -i xxx_ 6
+eighth_ninth_tenth        => eighthxxx__ninth_tenth
+fifth_sixth_seventh       => fifth_xxx_sixth_seventh
+first_second_third_fourth => first_xxx_second_third_fourth
+
+$ np -i _xxx end
+eighth_ninth_tenth        => eighth_ninth_tenth_xxx
+fifth_sixth_seventh       => fifth_sixth_seventh_xxx
+first_second_third_fourth => first_second_third_fourth_xxx
+```
 
 ---
 ``[+|-]e [EXT]``
