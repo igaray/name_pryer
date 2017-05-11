@@ -36,6 +36,7 @@
 * `-r X Y` allows replacing characters
 * `-s` is a shortform for substituting spaces, periods, dashes and underscores
 * `-t` will tokenize the filename and allow selecting which tokens remaing and in which order
+* `--git` will rename the files by calling `git mv`
 
 ### License and Credits
 

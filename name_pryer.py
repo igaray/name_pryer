@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # File-Pryer: File Name Swiss Army Knife
 
@@ -24,6 +24,7 @@ import glob
 import tty
 import termios
 import functools
+import subprocess
 
 ###############################################################################
 # GLOBALS
@@ -32,6 +33,7 @@ SHORT_USAGE = """
 Usage:
     -h
     -v [0 | 1 | 2 | 3]
+    --git
     -y
     -u
     -F FILENAME
@@ -71,6 +73,8 @@ Usage:
         lvl 3: show lvl 2 output and state of file name buffer after each step
         Counts as an action, so several may be present between other actions
         to raise or lower the verbosity during operation.
+    --git
+        Make filename modifications by calling git instead of directly.
     -y
         Yes mode, do not prompt for confirmation.
     -u
@@ -323,25 +327,28 @@ def init_fn_buffer(config):
     return fn_buffer
 
 
-def rename_file(old, new):
+def rename_file(config, old, new):
     try:
         if old == new:
             return True
-        os.renames(old, new)
+        if config.git_mode:
+            subprocess.call(["git", "mv", old, new])
+        else:
+            os.renames(old, new)
         return True
     except Exception:
         print("error while renaming {} to {}".format(old, new))
         return False
 
 
-def rename_files(fn_buffer):
+def rename_files(config, fn_buffer):
     for k, v in fn_buffer.items():
         if (k != fn_buffer[k].full()) and os.path.exists(fn_buffer[k].full()):
             t = fn_buffer[k].name + fn_buffer[k].ext
             error_msg = "error while renaming {} to {}! -> {} already exists!"
             sys.exit(error_msg.format(k, t, t))
     for k, v in sorted(fn_buffer.items()):
-        rename_file(v.path + k, v.path + v.full())
+        rename_file(config, v.path + k, v.path + v.full())
 
 
 def output_undo_script(fn_buffer):
@@ -522,6 +529,10 @@ def parse_args(argv):
 
         elif argv[i] == "-y":
             config.yes_mode = True
+            i += 1
+
+        elif argv[i] == "--git":
+            config.git_mode = True
             i += 1
 
         else:
@@ -1075,7 +1086,7 @@ def main():
         if config.undo:
             output_undo_script(fn_buffer)
         if confirmed:
-            rename_files(fn_buffer)
+            rename_files(config, fn_buffer)
 
 ###############################################################################
 if (__name__ == "__main__"):
