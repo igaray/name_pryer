@@ -215,6 +215,7 @@ class Config:
         self.recursive = False
         self.directory = os.getcwd()
         self.pattern = None
+        self.git_mode = False
 
 
 class Action:
@@ -331,13 +332,21 @@ def rename_file(config, old, new):
     try:
         if old == new:
             return True
+        if new == "":
+            print("Warning: attempt to rename file to empty name: {}", old)
+            return False
         if config.git_mode:
-            subprocess.call(["git", "mv", old, new])
+            subprocess.run(["git", "mv", old, new], check=True)
         else:
             os.renames(old, new)
         return True
-    except Exception:
+    except CalledProcessError as e:
+        print("error while git renaming {} to {}",format(old, new))
+        print("error:", e)
+        return False
+    except Exception as e:
         print("error while renaming {} to {}".format(old, new))
+        print("error: ", e)
         return False
 
 
