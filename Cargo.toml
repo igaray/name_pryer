@@ -1,0 +1,6 @@
+[package]
+name = "name_pryer"
+version = "0.1.0"
+authors = ["Iñaki Garay <igarai@gmail.com>"]
+
+[dependencies]
